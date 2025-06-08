@@ -1,0 +1,38 @@
+# Environment files
+.env
+.env.dev
+.env.local
+.env.production
+.dev.vars
+
+# Node modules
+node_modules
+node_modules/
+node_modules/**
+
+# Build output
+dist/
+.wrangler/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Wrangler files
+.dev.vars
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Generated files
+worker-configuration.d.ts

@@ -1,0 +1,2 @@
+- always run "pnpm run cf-typegen" when you modify the the wrangler file.
+- We use pnpm in this project, so, do not use npm.
