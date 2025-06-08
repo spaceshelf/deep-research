@@ -1,63 +1,76 @@
 import { generateText } from "ai";
-import pLimit from "p-limit";
 import { createOpenAIClient, OpenAIEnv } from "./openai";
 import { SourceInfo } from "./types";
 
 interface ReportData {
-  originalTopic: string;
-  researchDepth: number;
-  combinedInsights: string[];
-  sources: SourceInfo[];
-  totalNodesExplored: number;
-  totalRelevantResults: number;
+    originalTopic: string;
+    researchDepth: number;
+    combinedInsights: string[];
+    sources: SourceInfo[];
+    totalNodesExplored: number;
+    totalRelevantResults: number;
 }
 
 /**
  * Generate a comprehensive markdown report from research data
+ *
+ * This is the most complex function in the report generation process.
+ * It takes flattened research data and uses AI to synthesize it into
+ * a cohesive, well-structured markdown report with proper citations.
+ *
+ * Key complexity areas:
+ * 1. Dynamic content scaling based on research depth
+ * 2. Citation validation and fixing
+ * 3. Context preparation for AI prompt engineering
+ * 4. Token management for different report sizes
  */
-export async function generateMarkdownReport(
-  data: ReportData,
-  env: OpenAIEnv,
-): Promise<string> {
-  const openai = createOpenAIClient(env);
+export async function generateMarkdownReport(data: ReportData, env: OpenAIEnv): Promise<string> {
+    const openai = createOpenAIClient(env);
 
-  // Create citations mapping
-  const citationMap = new Map<string, number>();
-  data.sources.forEach((source, index) => {
-    citationMap.set(source.url, index + 1);
-  });
+    // Create citations mapping for later validation
+    // This ensures we know exactly which citation numbers are valid
+    const citationMap = new Map<string, number>();
+    data.sources.forEach((source, index) => {
+        citationMap.set(source.url, index + 1);
+    });
 
-  // Prepare sources context for AI
-  const sourcesContext = data.sources
-    .map(
-      (source, index) => `
+    // Prepare sources context for AI
+    // This gives the AI all the source material in a structured format
+    // Each source includes relevance score and originating query for context
+    const sourcesContext = data.sources
+        .map(
+            (source, index) => `
 [${index + 1}] ${source.title}
 URL: ${source.url}
 Relevance: ${source.relevanceScore}/100
 Query: "${source.query}"
 Content: ${source.snippet}
   `,
-    )
-    .join("\n");
+        )
+        .join("\n");
 
-  // Generate depth-appropriate content guidance
-  const depthGuidance = data.researchDepth <= 2 
-    ? "Create a concise but comprehensive report with clear sections and key findings."
-    : data.researchDepth <= 3
-    ? "Create a detailed report with thorough analysis, multiple perspectives, and comprehensive coverage of all major aspects."
-    : "Create an extensive, in-depth report with comprehensive analysis, detailed subsections, nuanced discussions, comparative analysis, and thorough exploration of all facets of the topic.";
+    // Generate depth-appropriate content guidance
+    // This is critical for scaling report complexity based on research depth
+    // Deeper research = more comprehensive reports with more sections and analysis
+    const depthGuidance =
+        data.researchDepth <= 2
+            ? "Create a concise but comprehensive report with clear sections and key findings."
+            : data.researchDepth <= 3
+              ? "Create a detailed report with thorough analysis, multiple perspectives, and comprehensive coverage of all major aspects."
+              : "Create an extensive, in-depth report with comprehensive analysis, detailed subsections, nuanced discussions, comparative analysis, and thorough exploration of all facets of the topic.";
 
-  const sectionGuidance = data.researchDepth <= 2
-    ? "Include 3-4 main sections with clear analysis."
-    : data.researchDepth <= 3
-    ? "Include 5-7 main sections with detailed subsections and comprehensive analysis."
-    : "Include 7-10 main sections with multiple detailed subsections, comparative analysis, and extensive discussion of implications and future directions.";
+    const sectionGuidance =
+        data.researchDepth <= 2
+            ? "Include 3-4 main sections with clear analysis."
+            : data.researchDepth <= 3
+              ? "Include 5-7 main sections with detailed subsections and comprehensive analysis."
+              : "Include 7-10 main sections with multiple detailed subsections, comparative analysis, and extensive discussion of implications and future directions.";
 
-  // Generate the main report content
-  const reportPrompt = `You are a research analyst creating a comprehensive markdown report on "${data.originalTopic}".
+    // Generate the main report content
+    const reportPrompt = `You are a research analyst creating a comprehensive markdown report on "${data.originalTopic}".
 
 Research Context:
-- Research depth: ${data.researchDepth} levels (${data.researchDepth === 1 ? 'Basic' : data.researchDepth === 2 ? 'Standard' : data.researchDepth === 3 ? 'Deep' : data.researchDepth === 4 ? 'Extensive' : 'Maximum'} research)
+- Research depth: ${data.researchDepth} levels (${data.researchDepth === 1 ? "Basic" : data.researchDepth === 2 ? "Standard" : data.researchDepth === 3 ? "Deep" : data.researchDepth === 4 ? "Extensive" : "Maximum"} research)
 - Total sources analyzed: ${data.totalRelevantResults}
 - Research nodes explored: ${data.totalNodesExplored}
 
@@ -77,7 +90,7 @@ Create a comprehensive, well-structured markdown report that:
 5. Identifies patterns, trends, and key findings with thorough analysis
 6. Highlights any gaps or areas needing further research
 7. Provides actionable conclusions and recommendations
-${data.researchDepth >= 3 ? '8. Includes comparative analysis and multiple perspectives\n9. Discusses implications and future directions\n10. Provides detailed subsection analysis' : ''}
+${data.researchDepth >= 3 ? "8. Includes comparative analysis and multiple perspectives\n9. Discusses implications and future directions\n10. Provides detailed subsection analysis" : ""}
 
 IMPORTANT CITATION RULES:
 - ONLY use citation numbers from [1] to [${data.sources.length}]
@@ -91,73 +104,83 @@ Use markdown formatting including headers (##, ###), bullet points, and emphasis
 Do NOT include a separate bibliography or sources section in your response - this will be automatically added.
 `;
 
-  // Scale report length based on research depth
-  const baseTokens = 2000;
-  const tokensPerDepth = 1500;
-  const maxTokens = baseTokens + (data.researchDepth * tokensPerDepth);
+    // Scale report length based on research depth
+    // More research depth = longer, more detailed reports
+    // This ensures report size matches the amount of research conducted
+    const baseTokens = 2000;
+    const tokensPerDepth = 1500;
+    const maxTokens = baseTokens + data.researchDepth * tokensPerDepth;
 
-  console.log(`[REPORT] Generating report with ${maxTokens} max tokens for depth ${data.researchDepth}`);
-
-  const reportContent = await generateText({
-    model: openai("o3-mini"),
-    prompt: reportPrompt,
-    maxTokens: maxTokens,
-  });
-
-  // Validate and fix citations in the report
-  let validatedReport = reportContent.text;
-  const maxCitationNumber = data.sources.length;
-
-  console.log(
-    `[REPORT] Validating citations - Max valid citation number: ${maxCitationNumber}`,
-  );
-
-  // Find all citation patterns [number] and validate them
-  const citationRegex = /\[(\d+)\]/g;
-  const invalidCitations: number[] = [];
-  const allCitations: number[] = [];
-
-  validatedReport = validatedReport.replace(citationRegex, (match, number) => {
-    const citationNum = parseInt(number, 10);
-    allCitations.push(citationNum);
-
-    if (citationNum > maxCitationNumber || citationNum < 1) {
-      invalidCitations.push(citationNum);
-      // Replace with a valid citation number (cycle through available sources)
-      const validNum = ((Math.abs(citationNum) - 1) % maxCitationNumber) + 1;
-      console.log(
-        `[REPORT] Replacing invalid citation [${citationNum}] with [${validNum}]`,
-      );
-      return `[${validNum}]`;
-    }
-    return match;
-  });
-
-  console.log(
-    `[REPORT] Found ${allCitations.length} total citations: [${[...new Set(allCitations)].sort((a, b) => a - b).join(", ")}]`,
-  );
-
-  if (invalidCitations.length > 0) {
     console.log(
-      `[REPORT] Fixed ${invalidCitations.length} invalid citations: [${invalidCitations.join(", ")}]`,
+        `[REPORT] Generating report with ${maxTokens} max tokens for depth ${data.researchDepth}`,
     );
-  } else {
-    console.log(`[REPORT] All citations are valid`);
-  }
 
-  // Generate the unified sources/references section
-  const sourcesSection = data.sources
-    .map(
-      (source, index) =>
-        `[${index + 1}] **${source.title}**
+    const reportContent = await generateText({
+        model: openai("o3-mini"),
+        prompt: reportPrompt,
+        maxTokens: maxTokens,
+    });
+
+    // Validate and fix citations in the report
+    // This is critical because AI sometimes generates invalid citation numbers
+    // We need to ensure every [number] reference corresponds to an actual source
+    let validatedReport = reportContent.text;
+    const maxCitationNumber = data.sources.length;
+
+    console.log(`[REPORT] Validating citations - Max valid citation number: ${maxCitationNumber}`);
+
+    // Find all citation patterns [number] and validate them
+    // AI might generate [15] when we only have 10 sources, so we fix these
+    const citationRegex = /\[(\d+)\]/g;
+    const invalidCitations: number[] = [];
+    const allCitations: number[] = [];
+
+    // Replace invalid citations with valid ones using modulo arithmetic
+    // This preserves the intent while ensuring all citations point to real sources
+    validatedReport = validatedReport.replace(citationRegex, (match, number) => {
+        const citationNum = parseInt(number, 10);
+        allCitations.push(citationNum);
+
+        if (citationNum > maxCitationNumber || citationNum < 1) {
+            invalidCitations.push(citationNum);
+            // Replace with a valid citation number (cycle through available sources)
+            // This ensures we always have a valid reference
+            const validNum = ((Math.abs(citationNum) - 1) % maxCitationNumber) + 1;
+            console.log(`[REPORT] Replacing invalid citation [${citationNum}] with [${validNum}]`);
+            return `[${validNum}]`;
+        }
+        return match;
+    });
+
+    console.log(
+        `[REPORT] Found ${allCitations.length} total citations: [${[...new Set(allCitations)].sort((a, b) => a - b).join(", ")}]`,
+    );
+
+    if (invalidCitations.length > 0) {
+        console.log(
+            `[REPORT] Fixed ${invalidCitations.length} invalid citations: [${invalidCitations.join(", ")}]`,
+        );
+    } else {
+        console.log(`[REPORT] All citations are valid`);
+    }
+
+    // Generate the unified sources/references section
+    // This creates a professional bibliography with all metadata
+    // Including relevance scores and originating queries for transparency
+    const sourcesSection = data.sources
+        .map(
+            (source, index) =>
+                `[${index + 1}] **${source.title}**
     *Retrieved from:* ${source.url}
     *Relevance Score:* ${source.relevanceScore}/100
     *Found via query:* "${source.query}"`,
-    )
-    .join("\n\n");
+        )
+        .join("\n\n");
 
-  // Combine everything into final report
-  const finalReport = `# Research Report: ${data.originalTopic}
+    // Combine everything into final report
+    // This creates the complete markdown document with header, content, sources, and methodology
+    // The structure ensures professional presentation and research transparency
+    const finalReport = `# Research Report: ${data.originalTopic}
 
 *Generated on ${new Date().toLocaleDateString()}*
 
@@ -181,19 +204,16 @@ This report was generated through a ${data.researchDepth}-level deep research pr
 
 *Report generated using AI-powered research workflow*`;
 
-  return finalReport;
+    return finalReport;
 }
 
 /**
  * Generate a summary report with key statistics
  */
-export async function generateReportSummary(
-  data: ReportData,
-  env: OpenAIEnv,
-): Promise<string> {
-  const openai = createOpenAIClient(env);
+export async function generateReportSummary(data: ReportData, env: OpenAIEnv): Promise<string> {
+    const openai = createOpenAIClient(env);
 
-  const summaryPrompt = `Create a concise executive summary for research on "${data.originalTopic}".
+    const summaryPrompt = `Create a concise executive summary for research on "${data.originalTopic}".
 
 Key Insights:
 ${data.combinedInsights.join("\n")}
@@ -205,11 +225,11 @@ Research Stats:
 
 Create a 2-3 paragraph executive summary that captures the most important findings and their implications.`;
 
-  const summary = await generateText({
-    model: openai("o3-mini"),
-    prompt: summaryPrompt,
-    maxTokens: 500,
-  });
+    const summary = await generateText({
+        model: openai("o3-mini"),
+        prompt: summaryPrompt,
+        maxTokens: 500,
+    });
 
-  return summary.text;
+    return summary.text;
 }
