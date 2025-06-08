@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deep Research Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -81,9 +82,101 @@
             border-radius: 4px;
             border: 1px solid #ddd;
             margin-top: 20px;
-            white-space: pre-wrap;
             font-family: Georgia, serif;
             line-height: 1.8;
+        }
+        .report h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .report h2 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        .report h3 {
+            color: #7f8c8d;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        .report p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        .report ul, .report ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        .report li {
+            margin-bottom: 8px;
+        }
+        .report blockquote {
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background: #f8f9fa;
+            font-style: italic;
+        }
+        .report code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .report a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .report a:hover {
+            text-decoration: underline;
+        }
+        .report hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 30px 0;
+        }
+        .report table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .report th, .report td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .report th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .report sup {
+            font-size: 0.8em;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .report em {
+            font-style: italic;
+            color: #666;
+        }
+        .report strong {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .report p {
+            margin-bottom: 15px;
+        }
+        /* Style for reference entries - target citation numbers at start of line */
+        .report p:first-line {
+            font-weight: bold;
+        }
+        /* Better styling for the unified references section */
+        .report h2 + p {
+            border-left: 3px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
         }
         .metadata {
             background: #f8f9fa;
@@ -162,6 +255,20 @@
         let startTime;
         let timerInterval;
         let instanceId;
+        let converter;
+        let currentReport = null;
+
+        // Initialize Showdown converter
+        document.addEventListener('DOMContentLoaded', function() {
+            converter = new showdown.Converter({
+                tables: true,
+                strikethrough: true,
+                tasklists: true,
+                simpleLineBreaks: true,
+                openLinksInNewWindow: true,
+                emoji: false
+            });
+        });
 
         const form = document.getElementById('researchForm');
         const statusContainer = document.getElementById('statusContainer');
@@ -300,8 +407,15 @@
             const elapsed = Date.now() - startTime;
             const elapsedSeconds = Math.floor(elapsed / 1000);
             
+            // Store report for download
+            currentReport = results;
+            
             const metadata = document.getElementById('reportMetadata');
             metadata.innerHTML = `
+                <button id="downloadBtn" onclick="downloadMarkdown()" 
+                        style="float: right; background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Download Markdown
+                </button>
                 <strong>Research Completed</strong><br>
                 <strong>Topic:</strong> ${results.originalTopic}<br>
                 <strong>Research Depth:</strong> ${results.researchDepth} levels<br>
@@ -312,11 +426,33 @@
                 <strong>Generated:</strong> ${new Date(results.reportMetadata.generatedAt).toLocaleString()}
             `;
             
+            // Convert markdown to HTML
             const reportContent = document.getElementById('reportContent');
-            reportContent.textContent = results.report;
+            if (converter && results.report) {
+                const htmlContent = converter.makeHtml(results.report);
+                reportContent.innerHTML = htmlContent;
+            } else {
+                // Fallback if converter not loaded
+                reportContent.textContent = results.report;
+            }
             
             resultsContainer.style.display = 'block';
             resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function downloadMarkdown() {
+            if (!currentReport) return;
+            
+            const fileName = `research-report-${currentReport.originalTopic.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${new Date(currentReport.reportMetadata.generatedAt).toISOString().split('T')[0]}.md`;
+            const blob = new Blob([currentReport.report], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
     </script>
 </body>
