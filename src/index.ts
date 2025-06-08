@@ -5,6 +5,7 @@ import {
 } from "cloudflare:workers";
 import { generateObject } from "ai";
 import { z } from "zod";
+import pLimit from "p-limit";
 import { createOpenAIClient } from "./openai";
 import { performDeepResearch, summarizeResearch } from "./research";
 import { ResearchConfig, SourceInfo } from "./types";
@@ -60,7 +61,7 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
 
         console.log("[STEP-1] Sending prompt to OpenAI for query generation");
         const result = await generateObject({
-          model: openai("gpt-4o-mini"),
+          model: openai("o3-mini"),
           prompt,
           schema: z.object({
             queries: z
@@ -88,6 +89,8 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
           maxDepth: researchDepth,
           resultsPerQuery: 3, // Reduced from 5 to save storage
           followUpQuestionsPerNode: 2, // Reduced from 3 to save storage
+          concurrencyLimit: 10, // Process up to 10 AI requests concurrently
+          requestDelay: 1000, // 1 second delay between AI requests
         };
 
         console.log("[STEP-2] Research configuration:", config);
@@ -101,23 +104,39 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
       async () => {
         console.log("[STEP-3] Starting deep research for all queries");
         console.log(
-          `[STEP-3] Processing ${initialQueries.queries.length} initial queries`,
+          `[STEP-3] Processing ${initialQueries.queries.length} initial queries sequentially`,
         );
 
-        const trees = await Promise.all(
-          initialQueries.queries.map((query, index) => {
+        // Use p-limit for initial queries with same concurrency settings
+        const limit = pLimit(researchConfig.concurrencyLimit || 1);
+
+        const treePromises = initialQueries.queries.map((query, index) =>
+          limit(async () => {
+            // Add delay between queries (except for first batch)
+            if (
+              index >= (researchConfig.concurrencyLimit || 1) &&
+              (researchConfig.requestDelay || 1000) > 0
+            ) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, researchConfig.requestDelay || 1000),
+              );
+            }
+
             console.log(
               `[STEP-3] Starting research tree ${index + 1}/${initialQueries.queries.length}: "${query}"`,
             );
-            return performDeepResearch(
+            const tree = await performDeepResearch(
               query,
               searchTopic,
               this.env,
               researchConfig,
               0,
             );
+            return tree;
           }),
         );
+
+        const trees = await Promise.all(treePromises);
 
         console.log(
           `[STEP-3] Completed deep research for all queries. Generated ${trees.length} research trees`,
@@ -219,8 +238,8 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
       },
     );
 
-    // Step 6: Generate comprehensive markdown report
-    const report = await step.do("generate markdown report", async () => {
+    // Step 6: Generate full markdown report
+    const fullReport = await step.do("generate full markdown report", async () => {
       console.log("[STEP-6] Generating comprehensive markdown report");
       const reportData = {
         originalTopic: searchTopic,
@@ -235,31 +254,42 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
         `[STEP-6] Generating report with ${finalAnalysis.combinedInsights.length} insights and ${finalAnalysis.sources.length} sources`,
       );
 
-      const [fullReport, executiveSummary] = await Promise.all([
-        generateMarkdownReport(reportData, this.env),
-        generateReportSummary(reportData, this.env),
-      ]);
-
-      const wordCount = fullReport.split(/\s+/).length;
+      const report = await generateMarkdownReport(reportData, this.env);
+      const wordCount = report.split(/\s+/).length;
+      
       console.log(
-        `[STEP-6] Report generation complete: ${wordCount} words, ${finalAnalysis.sources.length} citations`,
+        `[STEP-6] Full report generated: ${wordCount} words`,
       );
-
-      return {
-        fullReport,
-        executiveSummary,
-        wordCount,
-        citationCount: finalAnalysis.sources.length,
+      
+      return { report, wordCount };
+    });
+    
+    // Step 7: Generate executive summary
+    const executiveSummary = await step.do("generate executive summary", async () => {
+      console.log("[STEP-7] Generating executive summary");
+      const reportData = {
+        originalTopic: searchTopic,
+        researchDepth: researchDepth,
+        combinedInsights: finalAnalysis.combinedInsights,
+        sources: finalAnalysis.sources,
+        totalNodesExplored: finalAnalysis.totalNodesExplored,
+        totalRelevantResults: finalAnalysis.totalRelevantResults,
       };
+
+      const summary = await generateReportSummary(reportData, this.env);
+      
+      console.log("[STEP-7] Executive summary generated");
+      
+      return summary;
     });
 
     const finalResult = {
       ...finalAnalysis,
-      report: report.fullReport,
-      executiveSummary: report.executiveSummary,
+      report: fullReport.report,
+      executiveSummary: executiveSummary,
       reportMetadata: {
-        wordCount: report.wordCount,
-        citationCount: report.citationCount,
+        wordCount: fullReport.wordCount,
+        citationCount: finalAnalysis.sources.length,
         generatedAt: new Date().toISOString(),
       },
     };
@@ -269,7 +299,7 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
 
     console.log("[WORKFLOW] Deep research workflow completed successfully");
     console.log("[WORKFLOW] Final Statistics:");
-    console.log(`  Report: ${report.wordCount} words`);
+    console.log(`  Report: ${fullReport.wordCount} words`);
     console.log(`  Sources: ${finalAnalysis.uniqueSources} unique citations`);
     console.log(`  Insights: ${finalAnalysis.uniqueInsights} unique insights`);
     console.log(

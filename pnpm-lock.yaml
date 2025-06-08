@@ -17,6 +17,9 @@ importers:
       exa-js:
         specifier: ^1.8.8
         version: 1.8.8(ws@8.18.0)(zod@3.25.56)
+      p-limit:
+        specifier: ^6.2.0
+        version: 6.2.0
       zod:
         specifier: ^3.25.56
         version: 3.25.56
@@ -539,6 +542,10 @@ packages:
       zod:
         optional: true
 
+  p-limit@6.2.0:
+    resolution: {integrity: sha512-kuUqqHNUqoIWp/c467RI4X6mmyuojY5jGutNU0wVTmEOOfcuwLqyMVoAi9MKi2Ak+5i9+nhmrK4ufZE8069kHA==}
+    engines: {node: '>=18'}
+
   path-to-regexp@6.3.0:
     resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
 
@@ -645,6 +652,10 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  yocto-queue@1.2.1:
+    resolution: {integrity: sha512-AyeEbWOu/TAXdxlV9wmGcR0+yh2j3vYPGOECcIj2S7MkrLyC7ne+oye2BKTItt0ii2PHk4cDy+95+LshzbXnGg==}
+    engines: {node: '>=12.20'}
 
   youch@3.3.4:
     resolution: {integrity: sha512-UeVBXie8cA35DS6+nBkls68xaBBXCye0CNznrhszZjTbRVnJKQuNsyLKBTTL4ln1o1rh2PKtv35twV7irj5SEg==}
@@ -1052,6 +1063,10 @@ snapshots:
       ws: 8.18.0
       zod: 3.25.56
 
+  p-limit@6.2.0:
+    dependencies:
+      yocto-queue: 1.2.1
+
   path-to-regexp@6.3.0: {}
 
   pathe@2.0.3: {}
@@ -1168,6 +1183,8 @@ snapshots:
       - utf-8-validate
 
   ws@8.18.0: {}
+
+  yocto-queue@1.2.1: {}
 
   youch@3.3.4:
     dependencies:

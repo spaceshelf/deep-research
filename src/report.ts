@@ -1,4 +1,5 @@
 import { generateText } from "ai";
+import pLimit from "p-limit";
 import { createOpenAIClient, OpenAIEnv } from "./openai";
 import { SourceInfo } from "./types";
 
@@ -98,7 +99,7 @@ Do NOT include a separate bibliography or sources section in your response - thi
   console.log(`[REPORT] Generating report with ${maxTokens} max tokens for depth ${data.researchDepth}`);
 
   const reportContent = await generateText({
-    model: openai("gpt-4o"),
+    model: openai("o3-mini"),
     prompt: reportPrompt,
     maxTokens: maxTokens,
   });
@@ -205,7 +206,7 @@ Research Stats:
 Create a 2-3 paragraph executive summary that captures the most important findings and their implications.`;
 
   const summary = await generateText({
-    model: openai("gpt-4o-mini"),
+    model: openai("o3-mini"),
     prompt: summaryPrompt,
     maxTokens: 500,
   });

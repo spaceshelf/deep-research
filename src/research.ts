@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import Exa, { SearchResult } from "exa-js";
+import pLimit from "p-limit";
 import { createOpenAIClient, OpenAIEnv } from "./openai";
 import {
   ResearchNode,
@@ -18,7 +19,9 @@ interface ResearchEnv extends OpenAIEnv {
 /**
  * Convert full SearchResult to lightweight version for storage optimization
  */
-function toLightweightResult(result: SearchResult<any>): LightweightSearchResult {
+function toLightweightResult(
+  result: SearchResult<any>,
+): LightweightSearchResult {
   return {
     title: result.title || "Untitled",
     url: result.url,
@@ -54,7 +57,7 @@ async function checkRelevance(
   `;
 
   const relevanceCheck = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("o3-mini"),
     prompt,
     schema: z.object({
       isRelevant: z
@@ -113,7 +116,7 @@ async function generateInsights(
   `;
 
   const insights = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("o3-mini"),
     prompt,
     schema: z.object({
       insights: z
@@ -155,7 +158,7 @@ async function generateFollowUpQuestions(
   `;
 
   const questions = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("o3-mini"),
     prompt,
     schema: z.object({
       questions: z
@@ -178,7 +181,9 @@ export async function performDeepResearch(
   config: ResearchConfig,
   currentDepth: number = 0,
 ): Promise<ResearchNode> {
-  console.log(`[RESEARCH] Depth ${currentDepth}: Starting research for query: "${query}"`);
+  console.log(
+    `[RESEARCH] Depth ${currentDepth}: Starting research for query: "${query}"`,
+  );
   const exa = new Exa(env.EXA_API_KEY);
 
   // Initialize the research node
@@ -194,7 +199,9 @@ export async function performDeepResearch(
   };
 
   // Perform the search
-  console.log(`[RESEARCH] Depth ${currentDepth}: Searching with Exa AI for ${config.resultsPerQuery} results`);
+  console.log(
+    `[RESEARCH] Depth ${currentDepth}: Searching with Exa AI for ${config.resultsPerQuery} results`,
+  );
   const searchResult = await exa.searchAndContents(query, {
     text: true,
     livecrawl: "fallback",
@@ -204,21 +211,39 @@ export async function performDeepResearch(
   // Keep full results for AI processing, but store lightweight versions
   const fullResults = searchResult.results;
   node.searchResults = fullResults.map(toLightweightResult);
-  console.log(`[RESEARCH] Depth ${currentDepth}: Found ${node.searchResults.length} search results`);
+  console.log(
+    `[RESEARCH] Depth ${currentDepth}: Found ${node.searchResults.length} search results`,
+  );
 
-  // Check relevance for each result using full results with concurrency limit
-  console.log(`[RESEARCH] Depth ${currentDepth}: Checking relevance of results with AI (limited concurrency)`);
-  const relevanceChecks: RelevanceCheckResult[] = [];
-  const concurrencyLimit = 3; // Limit concurrent OpenAI calls
-  
-  for (let i = 0; i < fullResults.length; i += concurrencyLimit) {
-    const batch = fullResults.slice(i, i + concurrencyLimit);
-    const batchResults = await Promise.all(
-      batch.map((result) => checkRelevance(result, topic, query, env))
-    );
-    relevanceChecks.push(...batchResults);
-    console.log(`[RESEARCH] Depth ${currentDepth}: Completed relevance batch ${Math.floor(i/concurrencyLimit) + 1}/${Math.ceil(fullResults.length/concurrencyLimit)}`);
-  }
+  // Check relevance for each result using p-limit for concurrency control
+  const concurrencyLimit = config.concurrencyLimit || 1; // Default to 1 for minimal API load
+  const requestDelay = config.requestDelay || 500; // Default to 500ms delay
+
+  console.log(
+    `[RESEARCH] Depth ${currentDepth}: Checking relevance of results with AI (concurrency: ${concurrencyLimit})`,
+  );
+
+  // Create a limiter with the specified concurrency
+  const limit = pLimit(concurrencyLimit);
+
+  // Create promises with rate limiting
+  const relevancePromises = fullResults.map((result, index) =>
+    limit(async () => {
+      // Add delay before each request (except the first batch)
+      if (index >= concurrencyLimit && requestDelay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, requestDelay));
+      }
+
+      const relevance = await checkRelevance(result, topic, query, env);
+      console.log(
+        `[RESEARCH] Depth ${currentDepth}: Completed relevance check ${index + 1}/${fullResults.length}`,
+      );
+      return relevance;
+    }),
+  );
+
+  // Wait for all relevance checks to complete
+  const relevanceChecks = await Promise.all(relevancePromises);
 
   // Store relevance scores using lightweight results
   node.searchResults.forEach((result, index) => {
@@ -232,56 +257,89 @@ export async function performDeepResearch(
       relevanceChecks[index].isRelevant &&
       relevanceChecks[index].relevanceScore >= 70,
   );
-  
+
   node.relevantResults = relevantFullResults.map(toLightweightResult);
-  
-  console.log(`[RESEARCH] Depth ${currentDepth}: Found ${node.relevantResults.length}/${node.searchResults.length} relevant results (threshold: 70+)`);
+
+  console.log(
+    `[RESEARCH] Depth ${currentDepth}: Found ${node.relevantResults.length}/${node.searchResults.length} relevant results (threshold: 70+)`,
+  );
 
   // Generate insights from relevant results
   if (relevantFullResults.length > 0) {
-    console.log(`[RESEARCH] Depth ${currentDepth}: Generating insights from ${relevantFullResults.length} relevant results`);
+    console.log(
+      `[RESEARCH] Depth ${currentDepth}: Generating insights from ${relevantFullResults.length} relevant results`,
+    );
     node.insights = await generateInsights(
       relevantFullResults,
       topic,
       query,
       env,
     );
-    console.log(`[RESEARCH] Depth ${currentDepth}: Generated ${node.insights.length} insights`);
+    console.log(
+      `[RESEARCH] Depth ${currentDepth}: Generated ${node.insights.length} insights`,
+    );
 
     // Generate follow-up questions if we haven't reached max depth
     if (currentDepth < config.maxDepth - 1) {
-      console.log(`[RESEARCH] Depth ${currentDepth}: Generating follow-up questions for deeper research`);
+      console.log(
+        `[RESEARCH] Depth ${currentDepth}: Generating follow-up questions for deeper research`,
+      );
       node.followUpQuestions = await generateFollowUpQuestions(
         node,
         topic,
         env,
         config.followUpQuestionsPerNode,
       );
-      console.log(`[RESEARCH] Depth ${currentDepth}: Generated ${node.followUpQuestions.length} follow-up questions`);
+      console.log(
+        `[RESEARCH] Depth ${currentDepth}: Generated ${node.followUpQuestions.length} follow-up questions`,
+      );
 
       // Research each follow-up question at the next depth level with concurrency limit
       if (node.followUpQuestions.length > 0) {
-        console.log(`[RESEARCH] Depth ${currentDepth}: Starting follow-up research for ${node.followUpQuestions.length} questions (sequential to avoid subrequest limits)`);
-        node.children = [];
-        
-        for (const [index, followUpQuery] of node.followUpQuestions.entries()) {
-          console.log(`[RESEARCH] Depth ${currentDepth}: Processing follow-up question ${index + 1}/${node.followUpQuestions.length}`);
-          const childNode = await performDeepResearch(
-            followUpQuery,
-            topic,
-            env,
-            config,
-            currentDepth + 1, // Go to next depth level
-          );
-          node.children.push(childNode);
-        }
-        console.log(`[RESEARCH] Depth ${currentDepth}: Completed follow-up research for all questions`);
+        console.log(
+          `[RESEARCH] Depth ${currentDepth}: Starting follow-up research for ${node.followUpQuestions.length} questions (p-limit concurrency: ${concurrencyLimit})`,
+        );
+
+        // Use p-limit for follow-up research as well
+        const followUpPromises = node.followUpQuestions.map(
+          (followUpQuery, index) =>
+            limit(async () => {
+              // Add delay between follow-up research (except for first batch)
+              if (index >= concurrencyLimit && requestDelay > 0) {
+                await new Promise((resolve) =>
+                  setTimeout(resolve, requestDelay * 2),
+                ); // Double delay for follow-ups
+              }
+
+              console.log(
+                `[RESEARCH] Depth ${currentDepth}: Processing follow-up question ${index + 1}/${node.followUpQuestions.length}`,
+              );
+              const childNode = await performDeepResearch(
+                followUpQuery,
+                topic,
+                env,
+                config,
+                currentDepth + 1, // Go to next depth level
+              );
+              return childNode;
+            }),
+        );
+
+        // Wait for all follow-up research to complete
+        node.children = await Promise.all(followUpPromises);
+        console.log(
+          `[RESEARCH] Depth ${currentDepth}: Completed follow-up research for all questions`,
+        );
       }
     } else {
-      console.log(`[RESEARCH] Depth ${currentDepth}: Reached maximum depth (${config.maxDepth}), no further questions generated`);
+      console.log(
+        `[RESEARCH] Depth ${currentDepth}: Reached maximum depth (${config.maxDepth}), no further questions generated`,
+      );
     }
   } else {
-    console.log(`[RESEARCH] Depth ${currentDepth}: No relevant results found, skipping insight generation`);
+    console.log(
+      `[RESEARCH] Depth ${currentDepth}: No relevant results found, skipping insight generation`,
+    );
   }
 
   return node;

@@ -23,6 +23,8 @@ export interface ResearchConfig {
   maxDepth: number; // Controls how deep the research tree goes (depth 0 = initial queries, depth 1+ = follow-ups)
   resultsPerQuery: number;
   followUpQuestionsPerNode: number;
+  concurrencyLimit?: number; // Number of concurrent AI requests (default: 1)
+  requestDelay?: number; // Delay between requests in milliseconds (default: 500)
 }
 
 export interface RelevanceCheckResult {
