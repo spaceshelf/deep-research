@@ -206,13 +206,19 @@ export async function performDeepResearch(
   node.searchResults = fullResults.map(toLightweightResult);
   console.log(`[RESEARCH] Depth ${currentDepth}: Found ${node.searchResults.length} search results`);
 
-  // Check relevance for each result using full results
-  console.log(`[RESEARCH] Depth ${currentDepth}: Checking relevance of results with AI`);
-  const relevanceChecks = await Promise.all(
-    fullResults.map((result) =>
-      checkRelevance(result, topic, query, env),
-    ),
-  );
+  // Check relevance for each result using full results with concurrency limit
+  console.log(`[RESEARCH] Depth ${currentDepth}: Checking relevance of results with AI (limited concurrency)`);
+  const relevanceChecks: RelevanceCheckResult[] = [];
+  const concurrencyLimit = 3; // Limit concurrent OpenAI calls
+  
+  for (let i = 0; i < fullResults.length; i += concurrencyLimit) {
+    const batch = fullResults.slice(i, i + concurrencyLimit);
+    const batchResults = await Promise.all(
+      batch.map((result) => checkRelevance(result, topic, query, env))
+    );
+    relevanceChecks.push(...batchResults);
+    console.log(`[RESEARCH] Depth ${currentDepth}: Completed relevance batch ${Math.floor(i/concurrencyLimit) + 1}/${Math.ceil(fullResults.length/concurrencyLimit)}`);
+  }
 
   // Store relevance scores using lightweight results
   node.searchResults.forEach((result, index) => {
@@ -253,20 +259,22 @@ export async function performDeepResearch(
       );
       console.log(`[RESEARCH] Depth ${currentDepth}: Generated ${node.followUpQuestions.length} follow-up questions`);
 
-      // Research each follow-up question at the next depth level
+      // Research each follow-up question at the next depth level with concurrency limit
       if (node.followUpQuestions.length > 0) {
-        console.log(`[RESEARCH] Depth ${currentDepth}: Starting follow-up research for ${node.followUpQuestions.length} questions`);
-        node.children = await Promise.all(
-          node.followUpQuestions.map((followUpQuery) =>
-            performDeepResearch(
-              followUpQuery,
-              topic,
-              env,
-              config,
-              currentDepth + 1, // Go to next depth level
-            ),
-          ),
-        );
+        console.log(`[RESEARCH] Depth ${currentDepth}: Starting follow-up research for ${node.followUpQuestions.length} questions (sequential to avoid subrequest limits)`);
+        node.children = [];
+        
+        for (const [index, followUpQuery] of node.followUpQuestions.entries()) {
+          console.log(`[RESEARCH] Depth ${currentDepth}: Processing follow-up question ${index + 1}/${node.followUpQuestions.length}`);
+          const childNode = await performDeepResearch(
+            followUpQuery,
+            topic,
+            env,
+            config,
+            currentDepth + 1, // Go to next depth level
+          );
+          node.children.push(childNode);
+        }
         console.log(`[RESEARCH] Depth ${currentDepth}: Completed follow-up research for all questions`);
       }
     } else {
