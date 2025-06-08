@@ -7,8 +7,102 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+    <style>
+        :root {
+            /* Light theme */
+            --bg-color: #fff;
+            --text-color: #606c76;
+            --heading-color: #606c76;
+            --border-color: #d1d1d1;
+            --input-bg: #fff;
+            --input-border: #d1d1d1;
+            --button-bg: #9b4dca;
+            --button-hover: #606c76;
+            --code-bg: #f4f5f6;
+            --container-bg: #fff;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme */
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --heading-color: #ffffff;
+            --border-color: #404040;
+            --input-bg: #2a2a2a;
+            --input-border: #404040;
+            --button-bg: #9b4dca;
+            --button-hover: #8a3eb8;
+            --code-bg: #2a2a2a;
+            --container-bg: #1a1a1a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--heading-color);
+        }
+
+        input, select, textarea {
+            background-color: var(--input-bg);
+            border-color: var(--input-border);
+            color: var(--text-color);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--button-bg);
+        }
+
+        fieldset {
+            border-color: var(--border-color);
+        }
+
+        .button {
+            background-color: var(--button-bg);
+        }
+
+        .button:hover {
+            background-color: var(--button-hover);
+        }
+
+        #reportContent {
+            background-color: var(--code-bg) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-color) !important;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 4px 8px;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            line-height: 1;
+            min-width: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .theme-toggle:hover {
+            background: var(--code-bg);
+            border-color: var(--button-bg);
+        }
+    </style>
 </head>
 <body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark</button>
+    
     <div class="container">
         <!-- Header -->
         <div style="text-align: center; margin: 5rem 0;">
@@ -70,9 +164,34 @@
         let instanceId;
         let currentReport = null;
 
+        // Theme management
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            
+            setTheme(theme);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.textContent = theme === 'dark' ? 'Light' : 'Dark';
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
         // Simple initialization
         document.addEventListener('DOMContentLoaded', function() {
             console.log('[INIT] DOM Content Loaded');
+            initializeTheme();
         });
 
         const form = document.getElementById('researchForm');
