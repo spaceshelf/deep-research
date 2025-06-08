@@ -9,6 +9,7 @@ import { z } from "zod";
 import { createOpenAIClient } from "./openai";
 import { performDeepResearch, summarizeResearch } from "./research";
 import { ResearchConfig, SourceInfo } from "./types";
+import { generateMarkdownReport, generateReportSummary } from "./report";
 
 /**
  * Welcome to Cloudflare Workers! This is your first Workflows application.
@@ -135,7 +136,40 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
       };
     });
     
-    return finalAnalysis;
+    // Step 6: Generate comprehensive markdown report
+    const report = await step.do("generate markdown report", async () => {
+      const reportData = {
+        originalTopic: searchTopic,
+        researchDepth: researchDepth,
+        combinedInsights: finalAnalysis.combinedInsights,
+        sources: finalAnalysis.sources,
+        totalNodesExplored: finalAnalysis.totalNodesExplored,
+        totalRelevantResults: finalAnalysis.totalRelevantResults,
+      };
+      
+      const [fullReport, executiveSummary] = await Promise.all([
+        generateMarkdownReport(reportData, this.env),
+        generateReportSummary(reportData, this.env)
+      ]);
+      
+      return {
+        fullReport,
+        executiveSummary,
+        wordCount: fullReport.split(/\s+/).length,
+        citationCount: finalAnalysis.sources.length,
+      };
+    });
+    
+    return {
+      ...finalAnalysis,
+      report: report.fullReport,
+      executiveSummary: report.executiveSummary,
+      reportMetadata: {
+        wordCount: report.wordCount,
+        citationCount: report.citationCount,
+        generatedAt: new Date().toISOString(),
+      }
+    };
   }
 }
 export default {
