@@ -4,9 +4,9 @@ import {
   WorkflowStep,
 } from "cloudflare:workers";
 import Exa from "exa-js";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { createOpenAIClient } from "./openai";
 
 /**
  * Welcome to Cloudflare Workers! This is your first Workflows application.
@@ -42,19 +42,8 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
     
     // Generate relevant search queries using OpenAI
     const searchQueries = await step.do("generate relevant search queries", async () => {
-      if (!this.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY environment variable is required");
-      }
-      
-      if (!this.env.CLOUDFLARE_ACCOUNT_ID || !this.env.CLOUDFLARE_GATEWAY_ID) {
-        throw new Error("Cloudflare Gateway configuration missing");
-      }
-      
-      // Create OpenAI client with Cloudflare Gateway proxy
-      const openai = createOpenAI({
-        apiKey: this.env.OPENAI_API_KEY,
-        baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.CLOUDFLARE_ACCOUNT_ID}/${this.env.CLOUDFLARE_GATEWAY_ID}/openai`,
-      });
+      // Create OpenAI client using the centralized constructor
+      const openai = createOpenAIClient(this.env);
       
       const prompt = `Generate 5 diverse and relevant search queries for researching the topic: "${searchTopic}". 
       The queries should explore different angles and aspects of the topic to get comprehensive results.`;
