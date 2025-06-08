@@ -58,7 +58,7 @@
             </div>
             
             <!-- Report Content -->
-            <div id="reportContent" style="font-family: monospace; white-space: pre-wrap; background: #f4f5f6; padding: 2rem; border: 1px solid #d1d1d1;">
+            <div id="reportContent" style="font-family: monospace; white-space: pre-wrap; background: #f4f5f6; padding: 2rem; border: 1px solid #d1d1d1; line-height: 1.6;">
                 <!-- Report content will be populated here -->
             </div>
         </div>
@@ -68,7 +68,6 @@
         let startTime;
         let timerInterval;
         let instanceId;
-        let converter;
         let currentReport = null;
 
         // Simple initialization
@@ -195,7 +194,7 @@
                 <p><strong>Completed in:</strong> ${elapsedSeconds} seconds | <strong>Generated:</strong> ${new Date(results.reportMetadata.generatedAt).toLocaleDateString()}</p>
             `;
             
-            // Display markdown in fixed-width font
+            // Display markdown in monospace font
             const reportContent = document.getElementById('reportContent');
             reportContent.textContent = results.report;
             

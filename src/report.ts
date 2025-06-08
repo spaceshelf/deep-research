@@ -39,11 +39,24 @@ Content: ${source.snippet}
     )
     .join("\n");
 
+  // Generate depth-appropriate content guidance
+  const depthGuidance = data.researchDepth <= 2 
+    ? "Create a concise but comprehensive report with clear sections and key findings."
+    : data.researchDepth <= 3
+    ? "Create a detailed report with thorough analysis, multiple perspectives, and comprehensive coverage of all major aspects."
+    : "Create an extensive, in-depth report with comprehensive analysis, detailed subsections, nuanced discussions, comparative analysis, and thorough exploration of all facets of the topic.";
+
+  const sectionGuidance = data.researchDepth <= 2
+    ? "Include 3-4 main sections with clear analysis."
+    : data.researchDepth <= 3
+    ? "Include 5-7 main sections with detailed subsections and comprehensive analysis."
+    : "Include 7-10 main sections with multiple detailed subsections, comparative analysis, and extensive discussion of implications and future directions.";
+
   // Generate the main report content
   const reportPrompt = `You are a research analyst creating a comprehensive markdown report on "${data.originalTopic}".
 
 Research Context:
-- Research depth: ${data.researchDepth} levels
+- Research depth: ${data.researchDepth} levels (${data.researchDepth === 1 ? 'Basic' : data.researchDepth === 2 ? 'Standard' : data.researchDepth === 3 ? 'Deep' : data.researchDepth === 4 ? 'Extensive' : 'Maximum'} research)
 - Total sources analyzed: ${data.totalRelevantResults}
 - Research nodes explored: ${data.totalNodesExplored}
 
@@ -53,14 +66,17 @@ ${data.combinedInsights.map((insight, i) => `${i + 1}. ${insight}`).join("\n")}
 Available Sources:
 ${sourcesContext}
 
+${depthGuidance}
+
 Create a comprehensive, well-structured markdown report that:
-1. Provides an executive summary
-2. Organizes insights into logical sections with clear headings
-3. Synthesizes information across multiple sources
+1. Provides an executive summary proportional to the research depth
+2. ${sectionGuidance}
+3. Synthesizes information across multiple sources with depth appropriate to research level
 4. Includes proper citations using [number] format - ONLY use numbers 1-${data.sources.length} (available sources)
-5. Identifies patterns, trends, and key findings
+5. Identifies patterns, trends, and key findings with thorough analysis
 6. Highlights any gaps or areas needing further research
-7. Provides actionable conclusions
+7. Provides actionable conclusions and recommendations
+${data.researchDepth >= 3 ? '8. Includes comparative analysis and multiple perspectives\n9. Discusses implications and future directions\n10. Provides detailed subsection analysis' : ''}
 
 IMPORTANT CITATION RULES:
 - ONLY use citation numbers from [1] to [${data.sources.length}]
@@ -69,15 +85,22 @@ IMPORTANT CITATION RULES:
 - If referencing multiple sources, use format like [1][2][3]
 - All citations will be listed in a unified "References & Sources" section at the end
 
-The report should be professional, insightful, and demonstrate deep understanding of the topic.
+The report should be professional, insightful, and demonstrate deep understanding appropriate to the ${data.researchDepth}-level research depth.
 Use markdown formatting including headers (##, ###), bullet points, and emphasis where appropriate.
 Do NOT include a separate bibliography or sources section in your response - this will be automatically added.
 `;
 
+  // Scale report length based on research depth
+  const baseTokens = 2000;
+  const tokensPerDepth = 1500;
+  const maxTokens = baseTokens + (data.researchDepth * tokensPerDepth);
+
+  console.log(`[REPORT] Generating report with ${maxTokens} max tokens for depth ${data.researchDepth}`);
+
   const reportContent = await generateText({
     model: openai("gpt-4o"),
     prompt: reportPrompt,
-    maxTokens: 4000,
+    maxTokens: maxTokens,
   });
 
   // Validate and fix citations in the report
