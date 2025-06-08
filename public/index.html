@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deep Research Assistant</title>
-    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -70,152 +69,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        
-        /* Custom prose styles for markdown content */
-        .prose-content {
-            max-width: none;
-            line-height: 1.75;
-            color: #374151;
-        }
-        
-        .prose-content h1 {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: #111827;
-            margin-top: 0;
-            margin-bottom: 2rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid #3b82f6;
-        }
-        
-        .prose-content h2 {
-            font-size: 1.875rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-top: 3rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .prose-content h3 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #374151;
-            margin-top: 2.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .prose-content h4 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #4b5563;
-            margin-top: 2rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .prose-content p {
-            margin-bottom: 1.5rem;
-            text-align: justify;
-        }
-        
-        .prose-content ul, .prose-content ol {
-            margin-bottom: 1.5rem;
-            padding-left: 1.75rem;
-        }
-        
-        .prose-content li {
-            margin-bottom: 0.5rem;
-        }
-        
-        .prose-content a {
-            color: #3b82f6;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .prose-content a:hover {
-            text-decoration: underline;
-        }
-        
-        .prose-content strong {
-            font-weight: 600;
-            color: #111827;
-        }
-        
-        .prose-content em {
-            font-style: italic;
-            color: #6b7280;
-        }
-        
-        .prose-content blockquote {
-            border-left: 4px solid #3b82f6;
-            background-color: #f9fafb;
-            padding: 1rem 1.5rem;
-            margin: 2rem 0;
-            font-style: italic;
-        }
-        
-        .prose-content code {
-            background-color: #f3f4f6;
-            color: #1f2937;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.875rem;
-        }
-        
-        .prose-content pre {
-            background-color: #1f2937;
-            color: #f9fafb;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            overflow-x: auto;
-            margin: 1.5rem 0;
-        }
-        
-        .prose-content pre code {
-            background-color: transparent;
-            color: inherit;
-            padding: 0;
-        }
-        
-        .prose-content hr {
-            border: none;
-            border-top: 1px solid #d1d5db;
-            margin: 3rem 0;
-        }
-        
-        .prose-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 2rem 0;
-        }
-        
-        .prose-content th, .prose-content td {
-            border: 1px solid #d1d5db;
-            padding: 0.75rem;
-            text-align: left;
-        }
-        
-        .prose-content th {
-            background-color: #f9fafb;
-            font-weight: 600;
-        }
-        
-        /* Citation styling */
-        .prose-content sup {
-            font-size: 0.75rem;
-            color: #3b82f6;
-            font-weight: 600;
-        }
-        
-        /* References section styling */
-        .prose-content h2 + p {
-            border-left: 3px solid #3b82f6;
-            background-color: #f9fafb;
-            padding: 1rem;
-            margin: 1.5rem 0;
-            border-radius: 0.375rem;
-        }
         
         /* Animation for step transitions */
         .step-transition {
@@ -296,48 +149,6 @@
                 <div id="timer" class="mt-3 text-sm text-gray-500 font-mono">Time elapsed: 00:00:00</div>
             </div>
             
-            <!-- Progress Steps -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Research Progress</h3>
-                <div id="progressSteps" class="space-y-3">
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step1">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Generate initial search queries</span>
-                    </div>
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step2">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Configure research parameters</span>
-                    </div>
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step3">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Perform deep research for all queries</span>
-                    </div>
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step4">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Summarize research results</span>
-                    </div>
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step5">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Combine and analyze insights</span>
-                    </div>
-                    <div class="step-pending flex items-center space-x-3 p-3 rounded-lg step-transition" id="step6">
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-300">
-                            <div class="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300"></div>
-                        </div>
-                        <span class="text-gray-600 transition-colors duration-300">Generate markdown report</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Results Container -->
@@ -361,7 +172,7 @@
             
             <!-- Report Content -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                <div id="reportContent" class="prose-content">
+                <div id="reportContent" class="font-mono text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                     <!-- Report content will be populated here -->
                 </div>
             </div>
@@ -375,23 +186,9 @@
         let converter;
         let currentReport = null;
 
-        // Initialize Showdown converter
+        // Simple initialization
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('[INIT] DOM Content Loaded, initializing Showdown converter');
-            if (typeof showdown !== 'undefined') {
-                converter = new showdown.Converter({
-                    tables: true,
-                    strikethrough: true,
-                    tasklists: true,
-                    simpleLineBreaks: true,
-                    openLinksInNewWindow: true,
-                    emoji: false,
-                    headerLevelStart: 1
-                });
-                console.log('[INIT] Showdown converter initialized successfully');
-            } else {
-                console.error('[INIT] Showdown library not loaded');
-            }
+            console.log('[INIT] DOM Content Loaded');
         });
 
         const form = document.getElementById('researchForm');
@@ -480,39 +277,6 @@
             }
         }
 
-        function updateStepStatus(stepName, status) {
-            const stepMap = {
-                'generate initial search queries': 'step1',
-                'configure research parameters': 'step2', 
-                'perform deep research for all queries': 'step3',
-                'summarize research results': 'step4',
-                'combine and analyze insights': 'step5',
-                'generate markdown report': 'step6'
-            };
-            
-            const stepId = stepMap[stepName];
-            if (stepId) {
-                const stepElement = document.getElementById(stepId);
-                const circle = stepElement.querySelector('div');
-                const dot = circle.querySelector('div');
-                
-                if (status === 'completed') {
-                    circle.className = 'w-6 h-6 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center';
-                    dot.className = 'hidden';
-                    // Add checkmark
-                    circle.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>';
-                    stepElement.querySelector('span').className = 'text-green-600 font-medium';
-                } else if (status === 'running') {
-                    circle.className = 'w-6 h-6 rounded-full border-2 border-blue-500 flex items-center justify-center';
-                    dot.className = 'w-2 h-2 rounded-full bg-blue-500 animate-pulse';
-                    stepElement.querySelector('span').className = 'text-blue-600 font-medium';
-                } else {
-                    circle.className = 'w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center';
-                    dot.className = 'w-2 h-2 rounded-full bg-gray-300';
-                    stepElement.querySelector('span').className = 'text-gray-600';
-                }
-            }
-        }
 
         async function pollForResults() {
             try {
@@ -524,17 +288,6 @@
                 }
                 
                 const status = data.status;
-                
-                // Update step progress
-                if (status.steps) {
-                    Object.entries(status.steps).forEach(([stepName, stepData]) => {
-                        if (stepData.complete) {
-                            updateStepStatus(stepName, 'completed');
-                        } else if (stepData.started) {
-                            updateStepStatus(stepName, 'running');
-                        }
-                    });
-                }
                 
                 if (status.status === 'complete') {
                     showStatus('Research completed!', 'completed');
@@ -592,22 +345,9 @@
                 </div>
             `;
             
-            // Convert markdown to HTML
+            // Display markdown in fixed-width font
             const reportContent = document.getElementById('reportContent');
-            if (converter && results.report) {
-                console.log('[DISPLAY] Converting markdown to HTML with Showdown');
-                try {
-                    const htmlContent = converter.makeHtml(results.report);
-                    reportContent.innerHTML = htmlContent;
-                    console.log('[DISPLAY] Successfully converted markdown to HTML');
-                } catch (error) {
-                    console.error('[DISPLAY] Error converting markdown:', error);
-                    reportContent.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${results.report}</pre>`;
-                }
-            } else {
-                console.log('[DISPLAY] Showdown converter not available, showing raw markdown');
-                reportContent.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${results.report}</pre>`;
-            }
+            reportContent.textContent = results.report;
             
             resultsContainer.classList.remove('hidden');
             resultsContainer.scrollIntoView({ behavior: 'smooth' });
