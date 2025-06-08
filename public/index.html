@@ -64,29 +64,157 @@
                     }),
                 }
             },
-            plugins: [
-                function({ addUtilities }) {
-                    addUtilities({
-                        '.prose-citations': {
-                            'sup': {
-                                fontSize: '0.75rem',
-                                color: '#3b82f6',
-                                fontWeight: '600',
-                            }
-                        }
-                    })
-                }
-            ]
+            plugins: []
         }
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
         
-        /* Custom prose styles for citations and references */
-        .prose strong[data-citation] {
+        /* Custom prose styles for markdown content */
+        .prose-content {
+            max-width: none;
+            line-height: 1.75;
+            color: #374151;
+        }
+        
+        .prose-content h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #111827;
+            margin-top: 0;
+            margin-bottom: 2rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #3b82f6;
+        }
+        
+        .prose-content h2 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .prose-content h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .prose-content h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #4b5563;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .prose-content p {
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+        
+        .prose-content ul, .prose-content ol {
+            margin-bottom: 1.5rem;
+            padding-left: 1.75rem;
+        }
+        
+        .prose-content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .prose-content a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .prose-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .prose-content strong {
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .prose-content em {
+            font-style: italic;
+            color: #6b7280;
+        }
+        
+        .prose-content blockquote {
+            border-left: 4px solid #3b82f6;
+            background-color: #f9fafb;
+            padding: 1rem 1.5rem;
+            margin: 2rem 0;
+            font-style: italic;
+        }
+        
+        .prose-content code {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+        
+        .prose-content pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        .prose-content pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        
+        .prose-content hr {
+            border: none;
+            border-top: 1px solid #d1d5db;
+            margin: 3rem 0;
+        }
+        
+        .prose-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+        }
+        
+        .prose-content th, .prose-content td {
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        .prose-content th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        
+        /* Citation styling */
+        .prose-content sup {
+            font-size: 0.75rem;
             color: #3b82f6;
             font-weight: 600;
+        }
+        
+        /* References section styling */
+        .prose-content h2 + p {
+            border-left: 3px solid #3b82f6;
+            background-color: #f9fafb;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0.375rem;
         }
         
         /* Animation for step transitions */
@@ -226,14 +354,14 @@
                         <span>Download Markdown</span>
                     </button>
                 </div>
-                <div id="reportMetadata" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div id="reportMetadata" class="grid grid-cols-1 md:grid-cols-6 gap-4 text-sm">
                     <!-- Metadata will be populated here -->
                 </div>
             </div>
             
             <!-- Report Content -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                <div id="reportContent" class="prose prose-lg prose-gray max-w-none prose-headings:font-semibold prose-h1:text-gray-900 prose-h1:border-b prose-h1:border-brand-500 prose-h1:pb-3 prose-h2:text-gray-800 prose-h2:mt-8 prose-h3:text-gray-700 prose-h3:mt-6 prose-p:text-gray-600 prose-p:leading-relaxed prose-a:text-brand-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-blockquote:border-l-brand-500 prose-blockquote:bg-gray-50 prose-code:bg-gray-100 prose-code:text-gray-800 prose-hr:border-gray-300">
+                <div id="reportContent" class="prose-content">
                     <!-- Report content will be populated here -->
                 </div>
             </div>
@@ -249,14 +377,21 @@
 
         // Initialize Showdown converter
         document.addEventListener('DOMContentLoaded', function() {
-            converter = new showdown.Converter({
-                tables: true,
-                strikethrough: true,
-                tasklists: true,
-                simpleLineBreaks: true,
-                openLinksInNewWindow: true,
-                emoji: false
-            });
+            console.log('[INIT] DOM Content Loaded, initializing Showdown converter');
+            if (typeof showdown !== 'undefined') {
+                converter = new showdown.Converter({
+                    tables: true,
+                    strikethrough: true,
+                    tasklists: true,
+                    simpleLineBreaks: true,
+                    openLinksInNewWindow: true,
+                    emoji: false,
+                    headerLevelStart: 1
+                });
+                console.log('[INIT] Showdown converter initialized successfully');
+            } else {
+                console.error('[INIT] Showdown library not loaded');
+            }
         });
 
         const form = document.getElementById('researchForm');
@@ -431,8 +566,8 @@
             
             const metadata = document.getElementById('reportMetadata');
             metadata.innerHTML = `
-                <div class="text-center">
-                    <div class="text-lg font-semibold text-gray-900">${results.originalTopic}</div>
+                <div class="md:col-span-2 text-center md:text-left">
+                    <div class="text-lg font-semibold text-gray-900 break-words">${results.originalTopic}</div>
                     <div class="text-sm text-gray-600 mt-1">Research completed in ${elapsedSeconds} seconds</div>
                 </div>
                 <div class="text-center">
@@ -460,11 +595,18 @@
             // Convert markdown to HTML
             const reportContent = document.getElementById('reportContent');
             if (converter && results.report) {
-                const htmlContent = converter.makeHtml(results.report);
-                reportContent.innerHTML = htmlContent;
+                console.log('[DISPLAY] Converting markdown to HTML with Showdown');
+                try {
+                    const htmlContent = converter.makeHtml(results.report);
+                    reportContent.innerHTML = htmlContent;
+                    console.log('[DISPLAY] Successfully converted markdown to HTML');
+                } catch (error) {
+                    console.error('[DISPLAY] Error converting markdown:', error);
+                    reportContent.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${results.report}</pre>`;
+                }
             } else {
-                // Fallback if converter not loaded
-                reportContent.textContent = results.report;
+                console.log('[DISPLAY] Showdown converter not available, showing raw markdown');
+                reportContent.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${results.report}</pre>`;
             }
             
             resultsContainer.classList.remove('hidden');
