@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Research Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            cursor: pointer;
+            border: none;
+            padding: 12px 24px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.running {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #b8daff;
+        }
+        .status.completed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .report {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: Georgia, serif;
+            line-height: 1.8;
+        }
+        .metadata {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .progress-steps {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .step {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .step:last-child {
+            border-bottom: none;
+        }
+        .step.completed {
+            color: #28a745;
+        }
+        .step.running {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .step.pending {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Deep Research Assistant</h1>
+        <p>Enter a topic and get a comprehensive research report with citations and insights.</p>
+        
+        <form id="researchForm">
+            <div>
+                <label for="searchTopic">Research Topic:</label>
+                <input type="text" id="searchTopic" name="searchTopic" placeholder="e.g., Climate change impact on agriculture" required>
+            </div>
+            
+            <div>
+                <label for="researchDepth">Research Depth (1-5):</label>
+                <input type="number" id="researchDepth" name="researchDepth" min="1" max="5" value="2">
+            </div>
+            
+            <button type="submit" id="submitBtn">Start Research</button>
+        </form>
+    </div>
+
+    <div id="statusContainer" style="display: none;">
+        <div class="status" id="statusMessage">Initializing research...</div>
+        <div class="timer" id="timer">Time elapsed: 00:00:00</div>
+        
+        <div class="progress-steps" id="progressSteps">
+            <div class="step pending" id="step1">📝 Generate initial search queries</div>
+            <div class="step pending" id="step2">⚙️ Configure research parameters</div>
+            <div class="step pending" id="step3">🔍 Perform deep research for all queries</div>
+            <div class="step pending" id="step4">📊 Summarize research results</div>
+            <div class="step pending" id="step5">🧠 Combine and analyze insights</div>
+            <div class="step pending" id="step6">📑 Generate markdown report</div>
+        </div>
+    </div>
+
+    <div id="resultsContainer" style="display: none;">
+        <div class="metadata" id="reportMetadata"></div>
+        <div class="report" id="reportContent"></div>
+    </div>
+
+    <script>
+        let startTime;
+        let timerInterval;
+        let instanceId;
+
+        const form = document.getElementById('researchForm');
+        const statusContainer = document.getElementById('statusContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const timer = document.getElementById('timer');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const searchTopic = formData.get('searchTopic');
+            const researchDepth = formData.get('researchDepth');
+            
+            // Start research
+            startTime = Date.now();
+            startTimer();
+            showStatus('Starting research...', 'pending');
+            submitBtn.disabled = true;
+            
+            try {
+                // Create research instance
+                const params = new URLSearchParams({
+                    searchTopic: searchTopic,
+                    ...(researchDepth && { researchDepth: researchDepth })
+                });
+                
+                const response = await fetch(`/api/research?${params}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to start research');
+                }
+                
+                instanceId = data.id;
+                showStatus('Research started...', 'running');
+                pollForResults();
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                stopTimer();
+                submitBtn.disabled = false;
+            }
+        });
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const seconds = Math.floor(elapsed / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const hours = Math.floor(minutes / 60);
+                
+                const timeString = 
+                    String(hours).padStart(2, '0') + ':' +
+                    String(minutes % 60).padStart(2, '0') + ':' +
+                    String(seconds % 60).padStart(2, '0');
+                
+                timer.textContent = `Time elapsed: ${timeString}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+        }
+
+        function showStatus(message, type) {
+            statusContainer.style.display = 'block';
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+        }
+
+        function updateStepStatus(stepName, status) {
+            const stepMap = {
+                'generate initial search queries': 'step1',
+                'configure research parameters': 'step2', 
+                'perform deep research for all queries': 'step3',
+                'summarize research results': 'step4',
+                'combine and analyze insights': 'step5',
+                'generate markdown report': 'step6'
+            };
+            
+            const stepId = stepMap[stepName];
+            if (stepId) {
+                const stepElement = document.getElementById(stepId);
+                stepElement.className = `step ${status}`;
+            }
+        }
+
+        async function pollForResults() {
+            try {
+                const response = await fetch(`/api/research?instanceId=${instanceId}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error('Failed to check research status');
+                }
+                
+                const status = data.status;
+                
+                // Update step progress
+                if (status.steps) {
+                    Object.entries(status.steps).forEach(([stepName, stepData]) => {
+                        if (stepData.complete) {
+                            updateStepStatus(stepName, 'completed');
+                        } else if (stepData.started) {
+                            updateStepStatus(stepName, 'running');
+                        }
+                    });
+                }
+                
+                if (status.status === 'complete') {
+                    showStatus('Research completed!', 'completed');
+                    stopTimer();
+                    displayResults(status.output);
+                    submitBtn.disabled = false;
+                } else if (status.status === 'error') {
+                    showStatus(`Research failed: ${status.error}`, 'error');
+                    stopTimer();
+                    submitBtn.disabled = false;
+                } else {
+                    // Continue polling
+                    setTimeout(pollForResults, 2000);
+                }
+                
+            } catch (error) {
+                showStatus(`Error checking status: ${error.message}`, 'error');
+                stopTimer();
+                submitBtn.disabled = false;
+            }
+        }
+
+        function displayResults(results) {
+            const elapsed = Date.now() - startTime;
+            const elapsedSeconds = Math.floor(elapsed / 1000);
+            
+            const metadata = document.getElementById('reportMetadata');
+            metadata.innerHTML = `
+                <strong>Research Completed</strong><br>
+                <strong>Topic:</strong> ${results.originalTopic}<br>
+                <strong>Research Depth:</strong> ${results.researchDepth} levels<br>
+                <strong>Sources Found:</strong> ${results.uniqueSources} unique sources<br>
+                <strong>Insights Generated:</strong> ${results.uniqueInsights} unique insights<br>
+                <strong>Report Length:</strong> ${results.reportMetadata.wordCount} words<br>
+                <strong>Total Time:</strong> ${elapsedSeconds} seconds<br>
+                <strong>Generated:</strong> ${new Date(results.reportMetadata.generatedAt).toLocaleString()}
+            `;
+            
+            const reportContent = document.getElementById('reportContent');
+            reportContent.textContent = results.report;
+            
+            resultsContainer.style.display = 'block';
+            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

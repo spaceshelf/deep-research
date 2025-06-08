@@ -8,10 +8,23 @@ import {
   RelevanceCheckResult,
   ResearchSummary,
   SourceInfo,
+  LightweightSearchResult,
 } from "./types";
 
 interface ResearchEnv extends OpenAIEnv {
   EXA_API_KEY: string;
+}
+
+/**
+ * Convert full SearchResult to lightweight version for storage optimization
+ */
+function toLightweightResult(result: SearchResult<any>): LightweightSearchResult {
+  return {
+    title: result.title || "Untitled",
+    url: result.url,
+    snippet: (result.text || "").substring(0, 300), // Limit to 300 chars
+    score: result.score,
+  };
 }
 
 /**
@@ -165,6 +178,7 @@ export async function performDeepResearch(
   config: ResearchConfig,
   currentDepth: number = 0,
 ): Promise<ResearchNode> {
+  console.log(`[RESEARCH] Depth ${currentDepth}: Starting research for query: "${query}"`);
   const exa = new Exa(env.EXA_API_KEY);
 
   // Initialize the research node
@@ -180,65 +194,86 @@ export async function performDeepResearch(
   };
 
   // Perform the search
+  console.log(`[RESEARCH] Depth ${currentDepth}: Searching with Exa AI for ${config.resultsPerQuery} results`);
   const searchResult = await exa.searchAndContents(query, {
     text: true,
     livecrawl: "fallback",
     numResults: config.resultsPerQuery,
   });
 
-  node.searchResults = searchResult.results;
+  // Keep full results for AI processing, but store lightweight versions
+  const fullResults = searchResult.results;
+  node.searchResults = fullResults.map(toLightweightResult);
+  console.log(`[RESEARCH] Depth ${currentDepth}: Found ${node.searchResults.length} search results`);
 
-  // Check relevance for each result
+  // Check relevance for each result using full results
+  console.log(`[RESEARCH] Depth ${currentDepth}: Checking relevance of results with AI`);
   const relevanceChecks = await Promise.all(
-    node.searchResults.map((result) =>
+    fullResults.map((result) =>
       checkRelevance(result, topic, query, env),
     ),
   );
 
-  // Store relevance scores and filter relevant results
+  // Store relevance scores using lightweight results
   node.searchResults.forEach((result, index) => {
     const relevance = relevanceChecks[index];
     node.relevanceScores[result.url] = relevance.relevanceScore;
   });
 
-  // Filter relevant results
-  node.relevantResults = node.searchResults.filter(
+  // Filter relevant results and convert to lightweight
+  const relevantFullResults = fullResults.filter(
     (_result, index) =>
       relevanceChecks[index].isRelevant &&
       relevanceChecks[index].relevanceScore >= 70,
   );
+  
+  node.relevantResults = relevantFullResults.map(toLightweightResult);
+  
+  console.log(`[RESEARCH] Depth ${currentDepth}: Found ${node.relevantResults.length}/${node.searchResults.length} relevant results (threshold: 70+)`);
 
   // Generate insights from relevant results
-  if (node.relevantResults.length > 0) {
+  if (relevantFullResults.length > 0) {
+    console.log(`[RESEARCH] Depth ${currentDepth}: Generating insights from ${relevantFullResults.length} relevant results`);
     node.insights = await generateInsights(
-      node.relevantResults,
+      relevantFullResults,
       topic,
       query,
       env,
     );
+    console.log(`[RESEARCH] Depth ${currentDepth}: Generated ${node.insights.length} insights`);
 
-    // Generate follow-up questions if not at max depth
+    // Generate follow-up questions if we haven't reached max depth
     if (currentDepth < config.maxDepth - 1) {
+      console.log(`[RESEARCH] Depth ${currentDepth}: Generating follow-up questions for deeper research`);
       node.followUpQuestions = await generateFollowUpQuestions(
         node,
         topic,
         env,
         config.followUpQuestionsPerNode,
       );
+      console.log(`[RESEARCH] Depth ${currentDepth}: Generated ${node.followUpQuestions.length} follow-up questions`);
 
-      // Recursively research each follow-up question
-      node.children = await Promise.all(
-        node.followUpQuestions.map((followUpQuery) =>
-          performDeepResearch(
-            followUpQuery,
-            topic,
-            env,
-            config,
-            currentDepth + 1,
+      // Research each follow-up question at the next depth level
+      if (node.followUpQuestions.length > 0) {
+        console.log(`[RESEARCH] Depth ${currentDepth}: Starting follow-up research for ${node.followUpQuestions.length} questions`);
+        node.children = await Promise.all(
+          node.followUpQuestions.map((followUpQuery) =>
+            performDeepResearch(
+              followUpQuery,
+              topic,
+              env,
+              config,
+              currentDepth + 1, // Go to next depth level
+            ),
           ),
-        ),
-      );
+        );
+        console.log(`[RESEARCH] Depth ${currentDepth}: Completed follow-up research for all questions`);
+      }
+    } else {
+      console.log(`[RESEARCH] Depth ${currentDepth}: Reached maximum depth (${config.maxDepth}), no further questions generated`);
     }
+  } else {
+    console.log(`[RESEARCH] Depth ${currentDepth}: No relevant results found, skipping insight generation`);
   }
 
   return node;
@@ -266,9 +301,9 @@ export function summarizeResearch(
     node.relevantResults.forEach((result) => {
       const relevanceScore = node.relevanceScores[result.url] || 0;
       allSources.push({
-        title: result.title || "Untitled",
+        title: result.title,
         url: result.url,
-        snippet: result.text?.substring(0, 300) || "",
+        snippet: result.snippet, // Already limited to 300 chars
         query: node.query,
         relevanceScore,
       });
