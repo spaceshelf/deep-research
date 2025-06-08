@@ -1,340 +1,388 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deep Research Assistant</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
-    <style>
-        :root {
-            /* Light theme */
-            --bg-color: #fff;
-            --text-color: #606c76;
-            --heading-color: #606c76;
-            --border-color: #d1d1d1;
-            --input-bg: #fff;
-            --input-border: #d1d1d1;
-            --button-bg: #9b4dca;
-            --button-hover: #606c76;
-            --code-bg: #f4f5f6;
-            --container-bg: #fff;
-        }
-
-        [data-theme="dark"] {
-            /* Dark theme */
-            --bg-color: #1a1a1a;
-            --text-color: #e0e0e0;
-            --heading-color: #ffffff;
-            --border-color: #404040;
-            --input-bg: #2a2a2a;
-            --input-border: #404040;
-            --button-bg: #9b4dca;
-            --button-hover: #8a3eb8;
-            --code-bg: #2a2a2a;
-            --container-bg: #1a1a1a;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--heading-color);
-        }
-
-        input, select, textarea {
-            background-color: var(--input-bg);
-            border-color: var(--input-border);
-            color: var(--text-color);
-        }
-
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--button-bg);
-        }
-
-        fieldset {
-            border-color: var(--border-color);
-        }
-
-        .button {
-            background-color: var(--button-bg);
-        }
-
-        .button:hover {
-            background-color: var(--button-hover);
-        }
-
-        #reportContent {
-            background-color: var(--code-bg) !important;
-            border-color: var(--border-color) !important;
-            color: var(--text-color) !important;
-        }
-
-        .theme-toggle {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            background: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-            padding: 4px 8px;
-            color: var(--text-color);
-            cursor: pointer;
-            font-size: 12px;
-            font-family: inherit;
-            line-height: 1;
-            min-width: 40px;
-            text-align: center;
-            transition: all 0.3s;
-            z-index: 1000;
-        }
-
-        .theme-toggle:hover {
-            background: var(--code-bg);
-            border-color: var(--button-bg);
-        }
-    </style>
-</head>
-<body>
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark</button>
-    
-    <div class="container">
-        <!-- Header -->
-        <div style="text-align: center; margin: 5rem 0;">
-            <h1>Deep Research Assistant</h1>
-            <p>Minimal research tool for comprehensive reports</p>
-        </div>
-
-        <!-- Research Form -->
-        <form id="researchForm">
-            <fieldset>
-                <label for="searchTopic">Research Topic</label>
-                <input type="text" 
-                       id="searchTopic" 
-                       name="searchTopic" 
-                       placeholder="e.g., Climate change impact on agriculture" 
-                       required>
-                
-                <label for="researchDepth">Research Depth</label>
-                <select id="researchDepth" name="researchDepth">
-                    <option value="1">Level 1 - Basic research (Fast)</option>
-                    <option value="2" selected>Level 2 - Standard research (Recommended)</option>
-                    <option value="3">Level 3 - Deep research (Thorough)</option>
-                    <option value="4">Level 4 - Extensive research (Comprehensive)</option>
-                    <option value="5">Level 5 - Maximum depth (Most thorough)</option>
-                </select>
-                
-                <button type="submit" id="submitBtn" class="button-primary">Start Research</button>
-            </fieldset>
-        </form>
-
-        <!-- Status Container -->
-        <div id="statusContainer" style="display: none; margin-top: 3rem;">
-            <div id="statusMessage">Initializing research...</div>
-            <div id="timer" style="font-family: monospace; margin-top: 1rem;">Time elapsed: 00:00:00</div>
-        </div>
-
-        <!-- Results Container -->
-        <div id="resultsContainer" style="display: none; margin-top: 3rem;">
-            <!-- Report Metadata -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h3>Research Report</h3>
-                <button id="downloadBtn" onclick="downloadMarkdown()" class="button">Download Markdown</button>
-            </div>
-            
-            <div id="reportMetadata" style="margin-bottom: 2rem;">
-                <!-- Metadata will be populated here -->
-            </div>
-            
-            <!-- Report Content -->
-            <div id="reportContent" style="font-family: monospace; white-space: pre-wrap; background: #f4f5f6; padding: 2rem; border: 1px solid #d1d1d1; line-height: 1.6;">
-                <!-- Report content will be populated here -->
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let startTime;
-        let timerInterval;
-        let instanceId;
-        let currentReport = null;
-
-        // Theme management
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-            
-            setTheme(theme);
-        }
-
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            const themeToggle = document.getElementById('themeToggle');
-            if (themeToggle) {
-                themeToggle.textContent = theme === 'dark' ? 'Light' : 'Dark';
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Deep Research Assistant</title>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css"
+        />
+        <style>
+            :root {
+                /* Light theme */
+                --bg-color: #fff;
+                --text-color: #606c76;
+                --heading-color: #606c76;
+                --border-color: #d1d1d1;
+                --input-bg: #fff;
+                --input-border: #d1d1d1;
+                --button-bg: #9b4dca;
+                --button-hover: #606c76;
+                --code-bg: #f4f5f6;
+                --container-bg: #fff;
             }
-            localStorage.setItem('theme', theme);
-        }
 
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-        }
+            [data-theme="dark"] {
+                /* Dark theme */
+                --bg-color: #1a1a1a;
+                --text-color: #e0e0e0;
+                --heading-color: #ffffff;
+                --border-color: #404040;
+                --input-bg: #2a2a2a;
+                --input-border: #404040;
+                --button-bg: #9b4dca;
+                --button-hover: #8a3eb8;
+                --code-bg: #2a2a2a;
+                --container-bg: #1a1a1a;
+            }
 
-        // Simple initialization
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('[INIT] DOM Content Loaded');
-            initializeTheme();
-        });
+            body {
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+            }
 
-        const form = document.getElementById('researchForm');
-        const statusContainer = document.getElementById('statusContainer');
-        const resultsContainer = document.getElementById('resultsContainer');
-        const statusMessage = document.getElementById('statusMessage');
-        const timer = document.getElementById('timer');
-        const submitBtn = document.getElementById('submitBtn');
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6 {
+                color: var(--heading-color);
+            }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            const searchTopic = formData.get('searchTopic');
-            const researchDepth = formData.get('researchDepth');
-            
-            // Start research
-            startTime = Date.now();
-            startTimer();
-            showStatus('Starting research...', 'pending');
-            submitBtn.disabled = true;
-            
-            try {
-                // Create research instance
-                const params = new URLSearchParams({
-                    searchTopic: searchTopic,
-                    ...(researchDepth && { researchDepth: researchDepth })
-                });
-                
-                const response = await fetch(`/api/research?${params}`);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to start research');
+            input,
+            select,
+            textarea {
+                background-color: var(--input-bg);
+                border-color: var(--input-border);
+                color: var(--text-color);
+            }
+
+            input:focus,
+            select:focus,
+            textarea:focus {
+                border-color: var(--button-bg);
+            }
+
+            fieldset {
+                border-color: var(--border-color);
+            }
+
+            .button {
+                background-color: var(--button-bg);
+            }
+
+            .button:hover {
+                background-color: var(--button-hover);
+            }
+
+            #reportContent {
+                background-color: var(--code-bg) !important;
+                border-color: var(--border-color) !important;
+                color: var(--text-color) !important;
+            }
+
+            .theme-toggle {
+                position: fixed;
+                top: 15px;
+                right: 15px;
+                background: transparent;
+                border: 1px solid var(--border-color);
+                border-radius: 3px;
+                padding: 4px 8px;
+                color: var(--text-color);
+                cursor: pointer;
+                font-size: 12px;
+                font-family: inherit;
+                line-height: 1;
+                min-width: 40px;
+                text-align: center;
+                transition: all 0.3s;
+                z-index: 1000;
+            }
+
+            .theme-toggle:hover {
+                background: var(--code-bg);
+                border-color: var(--button-bg);
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">Dark</button>
+
+        <div class="container">
+            <!-- Header -->
+            <div style="text-align: center; margin: 5rem 0">
+                <h1>Deep Research Assistant</h1>
+                <p>Minimal research tool for comprehensive reports</p>
+            </div>
+
+            <!-- Research Form -->
+            <form id="researchForm">
+                <fieldset>
+                    <label for="searchTopic">Research Topic</label>
+                    <input
+                        type="text"
+                        id="searchTopic"
+                        name="searchTopic"
+                        placeholder="e.g., Climate change impact on agriculture"
+                        required
+                    />
+
+                    <label for="researchDepth">Research Depth</label>
+                    <select id="researchDepth" name="researchDepth">
+                        <option value="1">Level 1 - Basic research (Fast)</option>
+                        <option value="2" selected>
+                            Level 2 - Standard research (Recommended)
+                        </option>
+                        <option value="3">Level 3 - Deep research (Thorough)</option>
+                        <option value="4">Level 4 - Extensive research (Comprehensive)</option>
+                        <option value="5">Level 5 - Maximum depth (Most thorough)</option>
+                    </select>
+
+                    <button type="submit" id="submitBtn" class="button-primary">
+                        Start Research
+                    </button>
+                </fieldset>
+            </form>
+
+            <!-- Status Container -->
+            <div id="statusContainer" style="display: none; margin-top: 3rem">
+                <div id="statusMessage">Initializing research...</div>
+                <div id="timer" style="font-family: monospace; margin-top: 1rem">
+                    Time elapsed: 00:00:00
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="resultsContainer" style="display: none; margin-top: 3rem">
+                <!-- Report Metadata -->
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 2rem;
+                    "
+                >
+                    <h3>Research Report</h3>
+                    <button id="downloadBtn" onclick="downloadMarkdown()" class="button">
+                        Download Markdown
+                    </button>
+                </div>
+
+                <div id="reportMetadata" style="margin-bottom: 2rem">
+                    <!-- Metadata will be populated here -->
+                </div>
+
+                <!-- Report Content -->
+                <div
+                    id="reportContent"
+                    style="
+                        font-family: monospace;
+                        white-space: pre-wrap;
+                        background: #f4f5f6;
+                        padding: 2rem;
+                        border: 1px solid #d1d1d1;
+                        line-height: 1.6;
+                    "
+                >
+                    <!-- Report content will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let startTime;
+            let timerInterval;
+            let instanceId;
+            let currentReport = null;
+
+            // Theme management
+            function initializeTheme() {
+                const savedTheme = localStorage.getItem("theme");
+                const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                const theme = savedTheme || (prefersDark ? "dark" : "light");
+
+                setTheme(theme);
+            }
+
+            function setTheme(theme) {
+                document.documentElement.setAttribute("data-theme", theme);
+                const themeToggle = document.getElementById("themeToggle");
+                if (themeToggle) {
+                    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
                 }
-                
-                instanceId = data.id;
-                showStatus('Research started...', 'running');
-                pollForResults();
-                
-            } catch (error) {
-                showStatus(`Error: ${error.message}`, 'error');
-                stopTimer();
-                submitBtn.disabled = false;
+                localStorage.setItem("theme", theme);
             }
-        });
 
-        function startTimer() {
-            timerInterval = setInterval(() => {
+            function toggleTheme() {
+                const currentTheme = document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "dark" ? "light" : "dark";
+                setTheme(newTheme);
+            }
+
+            // Simple initialization
+            document.addEventListener("DOMContentLoaded", function () {
+                console.log("[INIT] DOM Content Loaded");
+                initializeTheme();
+            });
+
+            const form = document.getElementById("researchForm");
+            const statusContainer = document.getElementById("statusContainer");
+            const resultsContainer = document.getElementById("resultsContainer");
+            const statusMessage = document.getElementById("statusMessage");
+            const timer = document.getElementById("timer");
+            const submitBtn = document.getElementById("submitBtn");
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const searchTopic = formData.get("searchTopic");
+                const researchDepth = formData.get("researchDepth");
+
+                // Start research
+                startTime = Date.now();
+                startTimer();
+                showStatus("Starting research...", "pending");
+                submitBtn.disabled = true;
+
+                try {
+                    // Create research instance
+                    const params = new URLSearchParams({
+                        searchTopic: searchTopic,
+                        ...(researchDepth && { researchDepth: researchDepth }),
+                    });
+
+                    const response = await fetch(`/api/research?${params}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Failed to start research");
+                    }
+
+                    instanceId = data.id;
+                    showStatus("Research started...", "running");
+                    pollForResults();
+                } catch (error) {
+                    showStatus(`Error: ${error.message}`, "error");
+                    stopTimer();
+                    submitBtn.disabled = false;
+                }
+            });
+
+            function startTimer() {
+                timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    const seconds = Math.floor(elapsed / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const hours = Math.floor(minutes / 60);
+
+                    const timeString =
+                        String(hours).padStart(2, "0") +
+                        ":" +
+                        String(minutes % 60).padStart(2, "0") +
+                        ":" +
+                        String(seconds % 60).padStart(2, "0");
+
+                    timer.textContent = `Time elapsed: ${timeString}`;
+                }, 1000);
+            }
+
+            function stopTimer() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+            }
+
+            function showStatus(message, type) {
+                statusContainer.style.display = "block";
+                statusMessage.textContent = message;
+            }
+
+            async function pollForResults() {
+                try {
+                    const response = await fetch(`/api/research?instanceId=${instanceId}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error("Failed to check research status");
+                    }
+
+                    const status = data.status;
+
+                    if (status.status === "complete") {
+                        showStatus("Research completed!", "completed");
+                        stopTimer();
+                        displayResults(status.output);
+                        submitBtn.disabled = false;
+                    } else if (status.status === "error") {
+                        showStatus(`Research failed: ${status.error}`, "error");
+                        stopTimer();
+                        submitBtn.disabled = false;
+                    } else {
+                        // Continue polling
+                        setTimeout(pollForResults, 2000);
+                    }
+                } catch (error) {
+                    showStatus(`Error checking status: ${error.message}`, "error");
+                    stopTimer();
+                    submitBtn.disabled = false;
+                }
+            }
+
+            function displayResults(results) {
                 const elapsed = Date.now() - startTime;
-                const seconds = Math.floor(elapsed / 1000);
-                const minutes = Math.floor(seconds / 60);
-                const hours = Math.floor(minutes / 60);
-                
-                const timeString = 
-                    String(hours).padStart(2, '0') + ':' +
-                    String(minutes % 60).padStart(2, '0') + ':' +
-                    String(seconds % 60).padStart(2, '0');
-                
-                timer.textContent = `Time elapsed: ${timeString}`;
-            }, 1000);
-        }
+                const elapsedSeconds = Math.floor(elapsed / 1000);
 
-        function stopTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-        }
+                // Store report for download
+                currentReport = results;
 
-        function showStatus(message, type) {
-            statusContainer.style.display = 'block';
-            statusMessage.textContent = message;
-        }
-
-
-        async function pollForResults() {
-            try {
-                const response = await fetch(`/api/research?instanceId=${instanceId}`);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error('Failed to check research status');
-                }
-                
-                const status = data.status;
-                
-                if (status.status === 'complete') {
-                    showStatus('Research completed!', 'completed');
-                    stopTimer();
-                    displayResults(status.output);
-                    submitBtn.disabled = false;
-                } else if (status.status === 'error') {
-                    showStatus(`Research failed: ${status.error}`, 'error');
-                    stopTimer();
-                    submitBtn.disabled = false;
-                } else {
-                    // Continue polling
-                    setTimeout(pollForResults, 2000);
-                }
-                
-            } catch (error) {
-                showStatus(`Error checking status: ${error.message}`, 'error');
-                stopTimer();
-                submitBtn.disabled = false;
-            }
-        }
-
-        function displayResults(results) {
-            const elapsed = Date.now() - startTime;
-            const elapsedSeconds = Math.floor(elapsed / 1000);
-            
-            // Store report for download
-            currentReport = results;
-            
-            const metadata = document.getElementById('reportMetadata');
-            metadata.innerHTML = `
+                const metadata = document.getElementById("reportMetadata");
+                metadata.innerHTML = `
                 <p><strong>Topic:</strong> ${results.originalTopic}</p>
                 <p><strong>Depth:</strong> ${results.researchDepth} | <strong>Sources:</strong> ${results.uniqueSources} | <strong>Insights:</strong> ${results.uniqueInsights} | <strong>Words:</strong> ${results.reportMetadata.wordCount}</p>
                 <p><strong>Completed in:</strong> ${elapsedSeconds} seconds | <strong>Generated:</strong> ${new Date(results.reportMetadata.generatedAt).toLocaleDateString()}</p>
             `;
-            
-            // Display markdown in monospace font
-            const reportContent = document.getElementById('reportContent');
-            reportContent.textContent = results.report;
-            
-            resultsContainer.style.display = 'block';
-            resultsContainer.scrollIntoView({ behavior: 'smooth' });
-        }
 
-        function downloadMarkdown() {
-            if (!currentReport) return;
-            
-            const fileName = `research-report-${currentReport.originalTopic.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${new Date(currentReport.reportMetadata.generatedAt).toISOString().split('T')[0]}.md`;
-            const blob = new Blob([currentReport.report], { type: 'text/markdown' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        }
-    </script>
-</body>
+                // Display markdown in monospace font
+                const reportContent = document.getElementById("reportContent");
+                reportContent.textContent = results.report;
+
+                resultsContainer.style.display = "block";
+                resultsContainer.scrollIntoView({ behavior: "smooth" });
+            }
+
+            function downloadMarkdown() {
+                if (!currentReport) return;
+
+                const fileName = `research-report-${currentReport.originalTopic.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}-${new Date(currentReport.reportMetadata.generatedAt).toISOString().split("T")[0]}.md`;
+                const blob = new Blob([currentReport.report], {
+                    type: "text/markdown",
+                });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
+        </script>
+    </body>
 </html>

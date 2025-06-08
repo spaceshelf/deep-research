@@ -5,11 +5,13 @@ AI-powered deep research tool using recursive questioning and relevance scoring.
 ## Local Development
 
 1. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
 2. Set up environment variables in `.dev.vars`:
+
 ```
 OPENAI_API_KEY=your_openai_api_key
 EXA_API_KEY=your_exa_api_key
@@ -18,6 +20,7 @@ CLOUDFLARE_GATEWAY_ID=your_gateway_id
 ```
 
 3. Start development server:
+
 ```bash
 pnpm run dev
 ```
