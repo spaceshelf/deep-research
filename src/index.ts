@@ -7,6 +7,8 @@ import Exa from "exa-js";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { createOpenAIClient } from "./openai";
+import { performDeepResearch, summarizeResearch } from "./research";
+import { ResearchConfig, SourceInfo } from "./types";
 
 /**
  * Welcome to Cloudflare Workers! This is your first Workflows application.
@@ -30,73 +32,110 @@ interface Env {
 // User-defined params passed to your Workflow
 type Params = {
   searchTopic: string;
+  researchDepth?: number;
 };
 
 export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
   async run(event: WorkflowEvent<Params>, step: WorkflowStep) {
-    const { searchTopic } = event.payload;
+    const { searchTopic, researchDepth = 2 } = event.payload;
     
     if (!searchTopic) {
       throw new Error("searchTopic parameter is required");
     }
     
-    // Generate relevant search queries using OpenAI
-    const searchQueries = await step.do("generate relevant search queries", async () => {
-      // Create OpenAI client using the centralized constructor
+    // Step 1: Generate initial search queries
+    const initialQueries = await step.do("generate initial search queries", async () => {
       const openai = createOpenAIClient(this.env);
       
-      const prompt = `Generate 5 diverse and relevant search queries for researching the topic: "${searchTopic}". 
+      const prompt = `Generate 3 diverse and relevant search queries for researching the topic: "${searchTopic}". 
       The queries should explore different angles and aspects of the topic to get comprehensive results.`;
       
       const result = await generateObject({
         model: openai("gpt-4o-mini"),
         prompt,
         schema: z.object({
-          queries: z.array(z.string()).length(5).describe("5 relevant search queries"),
+          queries: z.array(z.string()).length(3).describe("3 relevant search queries"),
         }),
       });
       
       return {
-        originalTopic: searchTopic,
+        topic: searchTopic,
         queries: result.object.queries,
       };
     });
     
-    // Initialize Exa AI and perform searches for all queries
-    const searchResults = await step.do("search with exa ai", async () => {
-      if (!this.env.EXA_API_KEY) {
-        throw new Error("EXA_API_KEY environment variable is required");
-      }
+    // Step 2: Configure research parameters
+    const researchConfig = await step.do("configure research parameters", async () => {
+      const config: ResearchConfig = {
+        maxDepth: researchDepth,
+        resultsPerQuery: 5,
+        followUpQuestionsPerNode: 3,
+      };
       
-      const exa = new Exa(this.env.EXA_API_KEY);
-      
-      // Search for each generated query
-      const allResults = await Promise.all(
-        searchQueries.queries.map(async (query) => {
-          const result = await exa.searchAndContents(
-            query,
-            {
-              text: true,
-              livecrawl: "fallback",
-              numResults: 3, // Get top 3 results per query
-            }
-          );
-          return {
-            query,
-            results: result.results,
-          };
-        })
+      return config;
+    });
+    
+    // Step 3: Perform deep research for each query
+    const researchTrees = await step.do("perform deep research for all queries", async () => {
+      const trees = await Promise.all(
+        initialQueries.queries.map(query =>
+          performDeepResearch(query, searchTopic, this.env, researchConfig, 0)
+        )
       );
+      
+      return trees;
+    });
+    
+    // Step 4: Summarize research results
+    const summaries = await step.do("summarize research results", async () => {
+      const summaryList = researchTrees.map(tree => 
+        summarizeResearch(searchTopic, tree)
+      );
+      
+      return summaryList;
+    });
+    
+    // Step 5: Combine and analyze all insights
+    const finalAnalysis = await step.do("combine and analyze insights", async () => {
+      const combinedInsights = summaries.flatMap(s => s.allInsights);
+      const allSources = summaries.flatMap(s => s.allSources);
+      const totalNodes = summaries.reduce((sum, s) => sum + s.totalNodesExplored, 0);
+      const totalRelevantResults = summaries.reduce((sum, s) => sum + s.totalRelevantResults, 0);
+      
+      // Remove duplicate insights
+      const uniqueInsights = [...new Set(combinedInsights)];
+      
+      // Deduplicate sources by URL
+      const sourceMap = new Map<string, SourceInfo>();
+      allSources.forEach(source => {
+        const existing = sourceMap.get(source.url);
+        if (!existing || source.relevanceScore > existing.relevanceScore) {
+          sourceMap.set(source.url, source);
+        }
+      });
+      
+      // Convert map to array and sort by relevance score
+      const uniqueSources = Array.from(sourceMap.values())
+        .sort((a, b) => b.relevanceScore - a.relevanceScore);
       
       return {
         originalTopic: searchTopic,
-        searchQueries: searchQueries,
-        searchResults: allResults,
-        totalResults: allResults.reduce((sum, r) => sum + r.results.length, 0),
+        researchDepth: researchDepth,
+        initialQueries: initialQueries.queries,
+        researchTrees,
+        summaries,
+        combinedInsights: uniqueInsights,
+        totalInsights: combinedInsights.length,
+        uniqueInsights: uniqueInsights.length,
+        totalNodesExplored: totalNodes,
+        totalRelevantResults,
+        sources: uniqueSources,
+        totalSources: allSources.length,
+        uniqueSources: uniqueSources.length,
       };
     });
     
-    return searchResults;
+    return finalAnalysis;
   }
 }
 export default {
@@ -117,16 +156,26 @@ export default {
       });
     }
 
-    // Get search topic from query params
+    // Get search topic and depth from query params
     const searchTopic = url.searchParams.get("searchTopic");
+    const researchDepth = url.searchParams.get("researchDepth");
     
     if (!searchTopic) {
       return Response.json({ error: "searchTopic parameter is required" }, { status: 400 });
     }
     
-    // Spawn a new instance with the search topic
+    // Parse research depth if provided
+    const depth = researchDepth ? parseInt(researchDepth, 10) : undefined;
+    if (depth !== undefined && (isNaN(depth) || depth < 1 || depth > 5)) {
+      return Response.json({ error: "researchDepth must be a number between 1 and 5" }, { status: 400 });
+    }
+    
+    // Spawn a new instance with the search topic and optional depth
     let instance = await env.DEEP_RESEARCH_WORKFLOW.create({
-      params: { searchTopic },
+      params: { 
+        searchTopic,
+        ...(depth && { researchDepth: depth })
+      },
     });
     
     return Response.json({
