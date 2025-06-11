@@ -19,7 +19,7 @@ interface ResearchEnv extends OpenAIEnv {
 /**
  * Convert full SearchResult to lightweight version for storage optimization
  */
-function toLightweightResult(result: SearchResult<any>): LightweightSearchResult {
+export function toLightweightResult(result: SearchResult<any>): LightweightSearchResult {
     return {
         title: result.title || "Untitled",
         url: result.url,

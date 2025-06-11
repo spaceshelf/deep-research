@@ -6,7 +6,7 @@
     "$schema": "node_modules/wrangler/config-schema.json",
     "name": "deep-research",
     "main": "src/index.ts",
-    "compatibility_date": "2025-06-07",
+    "compatibility_date": "2025-05-25",
     "observability": {
         "enabled": true,
         "head_sampling_rate": 1,
