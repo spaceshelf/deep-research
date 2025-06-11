@@ -7,10 +7,25 @@
     "name": "deep-research",
     "main": "src/index.ts",
     "compatibility_date": "2025-05-25",
+    "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
     "observability": {
         "enabled": true,
         "head_sampling_rate": 1,
     },
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "RESEARCHER_AGENT",
+                "class_name": "ResearcherAgent",
+            },
+        ],
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_sqlite_classes": ["ResearcherAgent"],
+        },
+    ],
     "workflows": [
         {
             "name": "deep_research_workflow",

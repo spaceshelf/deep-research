@@ -1,5 +1,3 @@
-import { SearchResult } from "exa-js";
-
 // Lightweight version of search result for storage optimization
 export interface LightweightSearchResult {
     title: string;
