@@ -1,6 +1,6 @@
 /**
  * DeepResearchWorkflow - AI-powered research orchestration system
- * 
+ *
  * Implements a 7-step research process using OpenAI o3-mini and Exa AI:
  * 1. Generate diverse search queries from research topic
  * 2. Configure research parameters based on depth (1-5)
@@ -9,14 +9,14 @@
  * 5. Combine insights and deduplicate sources by relevance
  * 6. Generate comprehensive markdown report with validated citations
  * 7. Create executive summary of key findings
- * 
+ *
  * Features:
  * - Intelligent scaling: depth 1 (basic) to 5 (comprehensive)
  * - AI relevance scoring (70+ threshold for source inclusion)
  * - Automatic citation validation and correction
  * - Concurrency control to prevent API rate limiting
  * - Complete research methodology transparency
- * 
+ *
  * Performance: ~1-30 minutes depending on depth, produces 1000-8000+ word reports
  */
 
@@ -29,7 +29,7 @@ import { performDeepResearch, summarizeResearch } from "./research";
 import { ResearchConfig, SourceInfo } from "./types";
 import { generateMarkdownReport, generateReportSummary } from "./report";
 
-/** 
+/**
  * Schema defining the complete output structure of the DeepResearchWorkflow
  * Used for type safety and validation of workflow results
  */
@@ -37,26 +37,32 @@ export const WorkflowOutputSchema = z.object({
     originalTopic: z.string().describe("The original research topic that was requested"),
     researchDepth: z.number().describe("The depth level used for the research (1-5)"),
     initialQueries: z.array(z.string()).describe("Initial search queries generated from the topic"),
-    combinedInsights: z.array(z.string()).describe("All unique insights discovered during research"),
+    combinedInsights: z
+        .array(z.string())
+        .describe("All unique insights discovered during research"),
     uniqueInsights: z.number().describe("Total count of unique insights found"),
     totalNodesExplored: z.number().describe("Total number of search nodes explored"),
     totalRelevantResults: z.number().describe("Total number of relevant search results found"),
-    sources: z.array(
-        z.object({
-            title: z.string().describe("Title of the source document"),
-            url: z.string().describe("URL of the source document"),
-            snippet: z.string().describe("Relevant excerpt from the source"),
-            relevanceScore: z.number().describe("Relevance score (0-1) for this source"),
-        })
-    ).describe("Array of all sources used in the research"),
+    sources: z
+        .array(
+            z.object({
+                title: z.string().describe("Title of the source document"),
+                url: z.string().describe("URL of the source document"),
+                snippet: z.string().describe("Relevant excerpt from the source"),
+                relevanceScore: z.number().describe("Relevance score (0-1) for this source"),
+            }),
+        )
+        .describe("Array of all sources used in the research"),
     uniqueSources: z.number().describe("Total count of unique sources analyzed"),
     report: z.string().describe("Complete markdown research report"),
     executiveSummary: z.string().describe("Executive summary of the research findings"),
-    reportMetadata: z.object({
-        wordCount: z.number().describe("Total word count of the generated report"),
-        citationCount: z.number().describe("Number of citations included in the report"),
-        generatedAt: z.string().describe("ISO timestamp when the report was generated"),
-    }).describe("Metadata about the generated report"),
+    reportMetadata: z
+        .object({
+            wordCount: z.number().describe("Total word count of the generated report"),
+            citationCount: z.number().describe("Number of citations included in the report"),
+            generatedAt: z.string().describe("ISO timestamp when the report was generated"),
+        })
+        .describe("Metadata about the generated report"),
 });
 
 export type WorkflowOutput = z.infer<typeof WorkflowOutputSchema>;
@@ -76,7 +82,7 @@ type Params = {
 
 /**
  * DeepResearchWorkflow - Main workflow class for orchestrating research operations
- * 
+ *
  * This workflow combines multiple AI models and search engines to produce
  * comprehensive research reports with proper citations and analysis.
  */
@@ -319,7 +325,9 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
         console.log(`  Sources: ${finalResult.uniqueSources} unique citations`);
         console.log(`  Insights: ${finalResult.uniqueInsights} unique insights`);
         console.log(`  Nodes: ${finalResult.totalNodesExplored} research nodes explored`);
-        console.log(`  Topic: "${finalResult.originalTopic}" (depth: ${finalResult.researchDepth})`);
+        console.log(
+            `  Topic: "${finalResult.originalTopic}" (depth: ${finalResult.researchDepth})`,
+        );
 
         return validationResult.data;
     }

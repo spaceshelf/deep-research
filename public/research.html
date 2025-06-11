@@ -135,7 +135,7 @@
             }
 
             .status-indicator::before {
-                content: '';
+                content: "";
                 width: 6px;
                 height: 6px;
                 border-radius: 50%;
@@ -406,7 +406,7 @@
                         disabled
                     />
 
-                    <div style="margin-top: 1rem;">
+                    <div style="margin-top: 1rem">
                         <label>Research Depth</label>
                         <div class="depth-options" id="depthOptions">
                             <label class="depth-option">
@@ -446,12 +446,7 @@
                 <div class="spinner"></div>
                 <h3>Researching your topic...</h3>
                 <div class="timer" id="researchTimer">Time elapsed: 00:00</div>
-                <button
-                    id="cancelBtn"
-                    class="button cancel-button"
-                >
-                    Cancel Research
-                </button>
+                <button id="cancelBtn" class="button cancel-button">Cancel Research</button>
 
                 <div class="progress-steps">
                     <div class="step">
@@ -534,11 +529,11 @@
 
             // Depth descriptions for user guidance
             const depthDescriptions = {
-                "1": "Quick overview with surface-level information (Fastest)",
-                "2": "Standard research with balanced depth and speed (Recommended)",
-                "3": "Detailed analysis with comprehensive insights (Thorough)",
-                "4": "Comprehensive study with extensive source exploration (Comprehensive)",
-                "5": "Deep dive with maximum research depth and analysis (Most thorough)"
+                1: "Quick overview with surface-level information (Fastest)",
+                2: "Standard research with balanced depth and speed (Recommended)",
+                3: "Detailed analysis with comprehensive insights (Thorough)",
+                4: "Comprehensive study with extensive source exploration (Comprehensive)",
+                5: "Deep dive with maximum research depth and analysis (Most thorough)",
             };
 
             // DOM elements
@@ -581,7 +576,11 @@
 
             // Research timer functions
             function startResearchTimer() {
-                researchStartTime = Date.now();
+                // Only set start time if not already set (for new research vs resumed research)
+                if (!researchStartTime) {
+                    researchStartTime = Date.now();
+                }
+
                 researchTimer = setInterval(() => {
                     const elapsed = Date.now() - researchStartTime;
                     const minutes = Math.floor(elapsed / 60000);
@@ -596,6 +595,8 @@
                     clearInterval(researchTimer);
                     researchTimer = null;
                 }
+                // Reset start time for next research
+                researchStartTime = null;
             }
 
             function showLoadingIndicator() {
@@ -636,13 +637,13 @@
 
                 const isConnected = status === "connected";
                 researchTopic.disabled = !isConnected;
-                
+
                 // Enable/disable all radio buttons
                 const radioButtons = document.querySelectorAll('input[name="researchDepth"]');
-                radioButtons.forEach(radio => {
+                radioButtons.forEach((radio) => {
                     radio.disabled = !isConnected;
                 });
-                
+
                 submitBtn.disabled = !isConnected;
 
                 if (isConnected) {
@@ -696,10 +697,47 @@
 
                             switch (data.type) {
                                 case "connected":
-                                    updateConnectionStatus(
-                                        "connected",
-                                        "Connected - Ready for research",
-                                    );
+                                    // Use the message from the server to show current status
+                                    const status =
+                                        data.status === "ready"
+                                            ? "connected"
+                                            : data.status === "completed"
+                                              ? "connected"
+                                              : "processing";
+                                    updateConnectionStatus(status, data.message);
+
+                                    // Restore topic and depth if available
+                                    if (data.researchTopic) {
+                                        researchTopic.value = data.researchTopic;
+                                    }
+                                    if (data.researchDepth) {
+                                        setSelectedDepth(data.researchDepth);
+                                    }
+
+                                    // Handle different connection states
+                                    if (data.status === "ready") {
+                                        // Ready for new research
+                                        submitBtn.disabled = false;
+                                        submitBtn.textContent = "Start Research";
+                                        hideLoadingIndicator();
+                                        // Hide results if any were shown
+                                        resultsContainer.style.display = "none";
+                                    } else if (data.status === "completed") {
+                                        // Completed workflow - expect results to come next
+                                        submitBtn.disabled = false;
+                                        submitBtn.textContent = "Start New Research";
+                                        hideLoadingIndicator();
+                                        // Results will be displayed when research_completed message arrives
+                                    } else if (data.status === "failed") {
+                                        // Failed workflow - expect error to come next
+                                        submitBtn.disabled = false;
+                                        submitBtn.textContent = "Start New Research";
+                                        hideLoadingIndicator();
+                                    } else {
+                                        // Running or other status
+                                        submitBtn.disabled = true;
+                                        submitBtn.textContent = "Checking status...";
+                                    }
                                     break;
 
                                 case "research_started":
@@ -710,6 +748,18 @@
                                     submitBtn.disabled = true;
                                     submitBtn.textContent = "Researching...";
                                     currentWorkflowId = data.workflowId; // Store workflow ID for cancellation
+
+                                    // Restore topic and depth if available
+                                    if (data.topic) {
+                                        researchTopic.value = data.topic;
+                                    }
+                                    if (data.researchDepth) {
+                                        setSelectedDepth(data.researchDepth);
+                                    }
+
+                                    // Use the start time from the server if available, otherwise use current time
+                                    researchStartTime = data.startTime || Date.now();
+
                                     showLoadingIndicator();
                                     updateProgressStep(1);
                                     // Simulate progress steps during research
@@ -724,19 +774,19 @@
                                     if (data.status === "completed") {
                                         // Complete all steps
                                         updateProgressStep(4, "completed");
-                                        displayResults(data.topic, data.report);
+                                        displayResults(data.topic, data.report, true); // Pass true to indicate this is a restored session
                                     }
                                     submitBtn.disabled = false;
-                                    submitBtn.textContent = "Start Research";
-                                    researchTopic.value = "";
-                                    researchTopic.focus();
+                                    submitBtn.textContent = "Start New Research";
+                                    // Don't clear the topic and depth - keep them for reference
+                                    // Only clear when user actually starts new research
                                     break;
 
                                 case "error":
                                     updateConnectionStatus("error", `Error: ${data.message}`);
                                     hideLoadingIndicator();
                                     submitBtn.disabled = false;
-                                    submitBtn.textContent = "Start Research";
+                                    submitBtn.textContent = "Start New Research";
                                     break;
 
                                 default:
@@ -773,11 +823,29 @@
                 }
             });
 
+            // Set the selected depth radio button and update description
+            function setSelectedDepth(depth) {
+                console.log("Setting depth to:", depth);
+                const depthRadio = document.querySelector(
+                    `input[name="researchDepth"][value="${depth}"]`,
+                );
+                if (depthRadio) {
+                    depthRadio.checked = true;
+                    // Update description
+                    const selectedDepth = depth.toString();
+                    if (depthDescriptions[selectedDepth]) {
+                        depthDescription.textContent = depthDescriptions[selectedDepth];
+                    }
+                } else {
+                    console.error("Could not find radio button for depth:", depth);
+                }
+            }
+
             // Initialize depth description on page load
             function initializeDepthDescription() {
                 console.log("Initializing depth description");
                 const selectedRadio = document.querySelector('input[name="researchDepth"]:checked');
-                
+
                 if (selectedRadio && depthDescription) {
                     const currentDepth = selectedRadio.value;
                     console.log("Current depth value:", currentDepth);
@@ -794,9 +862,22 @@
                 const topic = researchTopic.value.trim();
                 const selectedRadio = document.querySelector('input[name="researchDepth"]:checked');
                 const depth = selectedRadio ? parseInt(selectedRadio.value) : 2;
-                
+
                 if (topic && ws && ws.readyState === WebSocket.OPEN) {
                     currentTopic = topic;
+
+                    // Hide any previous results when starting new research
+                    resultsContainer.style.display = "none";
+
+                    // Remove restored session indicator if it exists
+                    const existingIndicator = document.getElementById("restoredIndicator");
+                    if (existingIndicator) {
+                        existingIndicator.remove();
+                    }
+
+                    // Update button state immediately
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = "Starting Research...";
 
                     // Send research request with depth
                     ws.send(
@@ -814,13 +895,41 @@
             cancelBtn.addEventListener("click", cancelResearch);
 
             // Display research results
-            function displayResults(topic, report) {
+            function displayResults(topic, report, isRestored = false) {
                 currentReport = report;
                 currentTopic = topic;
 
                 reportContent.textContent = report;
                 resultsContainer.style.display = "block";
-                resultsContainer.scrollIntoView({ behavior: "smooth" });
+
+                // Add restored session indicator
+                if (isRestored) {
+                    // Check if indicator already exists to avoid duplicates
+                    let existingIndicator = document.getElementById("restoredIndicator");
+                    if (!existingIndicator) {
+                        const indicator = document.createElement("div");
+                        indicator.id = "restoredIndicator";
+                        indicator.style.cssText = `
+                            background: rgba(39, 174, 96, 0.15);
+                            color: var(--success-color);
+                            border: 1px solid rgba(39, 174, 96, 0.3);
+                            border-radius: 3px;
+                            padding: 0.75rem;
+                            margin-bottom: 1rem;
+                            font-size: 0.9rem;
+                            text-align: center;
+                        `;
+                        indicator.innerHTML = `<strong>Session Restored:</strong> Previous research results have been automatically restored`;
+
+                        // Insert before the results container content
+                        resultsContainer.insertBefore(indicator, resultsContainer.firstChild);
+                    }
+
+                    // Don't scroll for restored sessions - user is already at the top
+                } else {
+                    // Only scroll for fresh completions
+                    resultsContainer.scrollIntoView({ behavior: "smooth" });
+                }
             }
 
             // Download markdown report
