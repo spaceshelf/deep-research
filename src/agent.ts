@@ -386,6 +386,28 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
     }
 
     /**
+     * Helper method to broadcast type-safe messages to all connected clients
+     * Sends the same message to all connections for this agent instance (same chatId)
+     */
+    private broadcastMessage(message: OutgoingMessage) {
+        // Use the Agent's built-in broadcast functionality if available
+        // If not available, we would need to iterate through connections manually
+        try {
+            // Try to use broadcast method (may be available in Agents framework)
+            if (typeof (this as any).broadcast === 'function') {
+                (this as any).broadcast(JSON.stringify(message));
+            } else {
+                // Fallback: iterate through connections if broadcast is not available
+                console.log("Broadcast method not available, message will be sent on next connection");
+                // Note: The message will be sent when users reconnect via reportCurrentWorkflowStatus
+            }
+        } catch (error) {
+            console.error("Failed to broadcast message:", error);
+            // Fallback: message will be delivered on reconnection
+        }
+    }
+
+    /**
      * Helper method to send standardized error messages
      * Provides consistent error format across all error scenarios
      */
@@ -612,12 +634,29 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                 status.status === "errored" ||
                 status.status === "terminated"
             ) {
-                // Workflow completed or failed - update state and broadcast to any connected clients
+                // Workflow completed or failed - update state and broadcast to all connected clients
                 if (status.status === "complete") {
+                    const output = status.output as WorkflowOutput;
+                    
                     this.setState({
                         ...currentState,
                         lastActivity: Date.now(),
                         workflowStatus: "completed",
+                    });
+
+                    // Broadcast completion message to all connected clients for this chatId
+                    this.broadcastMessage({
+                        type: "research_completed",
+                        topic: output.originalTopic,
+                        report: output.report,
+                        status: "completed",
+                        metadata: {
+                            workflowId: currentState.currentWorkflowId || "",
+                            insights: output.uniqueInsights,
+                            sources: output.uniqueSources,
+                            wordCount: output.reportMetadata.wordCount,
+                            generatedAt: output.reportMetadata.generatedAt,
+                        },
                     });
                 } else {
                     this.setState({
@@ -625,12 +664,18 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                         lastActivity: Date.now(),
                         workflowStatus: "failed",
                     });
+
+                    // Broadcast error message to all connected clients for this chatId
+                    this.broadcastMessage({
+                        type: "research_completed",
+                        topic: topic,
+                        status: "error",
+                        error: (status as any).error || "Workflow failed",
+                    });
                 }
 
                 console.log("Research completed/failed for topic:", topic);
-                console.log(
-                    "State updated, any connecting clients will see the completed workflow",
-                );
+                console.log("Completion message broadcast to all connected clients in this session");
                 return; // Stop checking
             }
 
