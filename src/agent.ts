@@ -199,93 +199,102 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                 !!status.output,
             );
 
-            if (status.status === "running") {
-                // Update state to running and continue monitoring
-                this.setState({
-                    ...currentState,
-                    lastActivity: Date.now(),
-                    workflowStatus: "running",
-                });
+            switch (status.status) {
+                case "running":
+                    // Update state to running and continue monitoring
+                    this.setState({
+                        ...currentState,
+                        lastActivity: Date.now(),
+                        workflowStatus: "running",
+                    });
 
-                this.sendMessage(connection, {
-                    type: "research_started",
-                    topic: currentState.researchTopic || "Resuming active research...",
-                    status: "processing",
-                    workflowId: currentState.currentWorkflowId,
-                    startTime: currentState.workflowStartTime || undefined,
-                    researchDepth: currentState.researchDepth || undefined,
-                });
-
-                // Continue monitoring for the new connection
-                await this.scheduleWorkflowMonitoring(
-                    connection,
-                    currentState.currentWorkflowId,
-                    currentState.researchTopic || "Active research",
-                );
-            } else if (status.status === "complete" && status.output) {
-                // Workflow completed successfully - send connected message with topic/depth, then send results
-                console.log("Workflow completed, sending results to frontend");
-
-                this.setState({
-                    ...currentState,
-                    lastActivity: Date.now(),
-                    workflowStatus: "completed",
-                });
-
-                this.sendMessage(connection, {
-                    type: "connected",
-                    status: "completed",
-                    message: "Research completed - displaying results",
-                    researchTopic: currentState.researchTopic || undefined,
-                    researchDepth: currentState.researchDepth || undefined,
-                });
-
-                // Query workflow for results and send them immediately
-                const output = status.output as WorkflowOutput;
-                console.log("Sending completed research results:", {
-                    topic: output.originalTopic,
-                    wordCount: output.reportMetadata?.wordCount,
-                    insights: output.uniqueInsights,
-                    sources: output.uniqueSources,
-                });
-
-                this.sendMessage(connection, {
-                    type: "research_completed",
-                    topic: output.originalTopic,
-                    report: output.report,
-                    status: "completed",
-                    metadata: {
+                    this.sendMessage(connection, {
+                        type: "research_started",
+                        topic: currentState.researchTopic || "Resuming active research...",
+                        status: "processing",
                         workflowId: currentState.currentWorkflowId,
-                        insights: output.uniqueInsights,
-                        sources: output.uniqueSources,
-                        wordCount: output.reportMetadata.wordCount,
-                        generatedAt: output.reportMetadata.generatedAt,
-                    },
-                });
-            } else {
-                // Workflow failed, errored, terminated, or completed without output
-                console.log("Workflow in failed/error state:", status.status);
+                        startTime: currentState.workflowStartTime || undefined,
+                        researchDepth: currentState.researchDepth || undefined,
+                    });
 
-                this.setState({
-                    ...currentState,
-                    lastActivity: Date.now(),
-                    workflowStatus: "failed",
-                });
+                    // Continue monitoring for the new connection
+                    await this.scheduleWorkflowMonitoring(
+                        connection,
+                        currentState.currentWorkflowId,
+                        currentState.researchTopic || "Active research",
+                    );
+                    break;
 
-                this.sendMessage(connection, {
-                    type: "connected",
-                    status: "failed",
-                    message: "Previous research failed",
-                    researchTopic: currentState.researchTopic || undefined,
-                    researchDepth: currentState.researchDepth || undefined,
-                });
+                case "complete":
+                    if (status.output) {
+                        // Workflow completed successfully - send connected message with topic/depth, then send results
+                        console.log("Workflow completed, sending results to frontend");
 
-                this.sendMessage(connection, {
-                    type: "research_completed",
-                    topic: currentState.researchTopic || "Failed research",
-                    status: "error",
-                    error: (status as any).error || `Workflow ${status.status}`,
-                });
+                        this.setState({
+                            ...currentState,
+                            lastActivity: Date.now(),
+                            workflowStatus: "completed",
+                        });
+
+                        this.sendMessage(connection, {
+                            type: "connected",
+                            status: "completed",
+                            message: "Research completed - displaying results",
+                            researchTopic: currentState.researchTopic || undefined,
+                            researchDepth: currentState.researchDepth || undefined,
+                        });
+
+                        // Query workflow for results and send them immediately
+                        const output = status.output as WorkflowOutput;
+                        console.log("Sending completed research results:", {
+                            topic: output.originalTopic,
+                            wordCount: output.reportMetadata?.wordCount,
+                            insights: output.uniqueInsights,
+                            sources: output.uniqueSources,
+                        });
+
+                        this.sendMessage(connection, {
+                            type: "research_completed",
+                            topic: output.originalTopic,
+                            report: output.report,
+                            status: "completed",
+                            metadata: {
+                                workflowId: currentState.currentWorkflowId,
+                                insights: output.uniqueInsights,
+                                sources: output.uniqueSources,
+                                wordCount: output.reportMetadata.wordCount,
+                                generatedAt: output.reportMetadata.generatedAt,
+                            },
+                        });
+                        break;
+                    }
+                // Fall through to default case if complete without output
+
+                default:
+                    // Workflow failed, errored, terminated, or completed without output
+                    console.log("Workflow in failed/error state:", status.status);
+
+                    this.setState({
+                        ...currentState,
+                        lastActivity: Date.now(),
+                        workflowStatus: "failed",
+                    });
+
+                    this.sendMessage(connection, {
+                        type: "connected",
+                        status: "failed",
+                        message: "Previous research failed",
+                        researchTopic: currentState.researchTopic || undefined,
+                        researchDepth: currentState.researchDepth || undefined,
+                    });
+
+                    this.sendMessage(connection, {
+                        type: "research_completed",
+                        topic: currentState.researchTopic || "Failed research",
+                        status: "error",
+                        error: (status as any).error || `Workflow ${status.status}`,
+                    });
+                    break;
             }
         } catch (error) {
             console.error("Failed to check active workflow status:", error);
@@ -296,61 +305,6 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                 message: "Ready for research requests",
             });
         }
-    }
-
-    /**
-     * Handles workflow completion/failure and updates agent state
-     * Reusable method for both monitoring and connection scenarios
-     * Note: Does not clear workflow state - state is only cleared when user starts new research
-     */
-    private async handleWorkflowCompletion(connection: Connection, status: any, topic: string) {
-        const currentState = this.state || {
-            lastActivity: 0,
-            currentWorkflowId: null,
-            workflowStartTime: null,
-            workflowStatus: null,
-        };
-
-        if (status.status === "complete") {
-            const output = status.output as WorkflowOutput;
-
-            // Update state to completed (but don't clear workflow info)
-            this.setState({
-                ...currentState,
-                lastActivity: Date.now(),
-                workflowStatus: "completed",
-            });
-
-            this.sendMessage(connection, {
-                type: "research_completed",
-                topic: output.originalTopic,
-                report: output.report,
-                status: "completed",
-                metadata: {
-                    workflowId: currentState.currentWorkflowId || "",
-                    insights: output.uniqueInsights,
-                    sources: output.uniqueSources,
-                    wordCount: output.reportMetadata.wordCount,
-                    generatedAt: output.reportMetadata.generatedAt,
-                },
-            });
-        } else {
-            // Workflow failed or terminated
-            this.setState({
-                ...currentState,
-                lastActivity: Date.now(),
-                workflowStatus: "failed",
-            });
-
-            this.sendMessage(connection, {
-                type: "research_completed",
-                topic: topic,
-                status: "error",
-                error: (status as any).error || "Workflow failed",
-            });
-        }
-
-        // Note: Workflow state is not cleared here - it will be cleared when user starts new research
     }
 
     /**
@@ -390,20 +344,17 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
      * Sends the same message to all connections for this agent instance (same chatId)
      */
     private broadcastMessage(message: OutgoingMessage) {
-        // Use the Agent's built-in broadcast functionality if available
-        // If not available, we would need to iterate through connections manually
         try {
             // Try to use broadcast method (may be available in Agents framework)
-            if (typeof (this as any).broadcast === 'function') {
+            if (typeof (this as any).broadcast === "function") {
                 (this as any).broadcast(JSON.stringify(message));
             } else {
-                // Fallback: iterate through connections if broadcast is not available
-                console.log("Broadcast method not available, message will be sent on next connection");
-                // Note: The message will be sent when users reconnect via reportCurrentWorkflowStatus
+                console.log(
+                    "Broadcast method not available, message will be sent on next connection",
+                );
             }
         } catch (error) {
             console.error("Failed to broadcast message:", error);
-            // Fallback: message will be delivered on reconnection
         }
     }
 
@@ -637,7 +588,7 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                 // Workflow completed or failed - update state and broadcast to all connected clients
                 if (status.status === "complete") {
                     const output = status.output as WorkflowOutput;
-                    
+
                     this.setState({
                         ...currentState,
                         lastActivity: Date.now(),
@@ -675,7 +626,9 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
                 }
 
                 console.log("Research completed/failed for topic:", topic);
-                console.log("Completion message broadcast to all connected clients in this session");
+                console.log(
+                    "Completion message broadcast to all connected clients in this session",
+                );
                 return; // Stop checking
             }
 
