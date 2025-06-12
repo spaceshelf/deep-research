@@ -405,22 +405,21 @@ export class ResearcherAgent extends Agent<Env, ResearchState> {
         const data = parseResult.data;
         console.log("Validated message:", data);
 
-        if (data.type === "research_request") {
-            await this.handleResearchRequest(connection, data);
-            return;
-        }
+        switch (data.type) {
+            case "research_request":
+                await this.handleResearchRequest(connection, data);
+                break;
 
-        if (data.type === "ping") {
-            this.sendMessage(connection, {
-                type: "pong",
-                timestamp: Date.now(),
-            });
-            return;
-        }
+            case "ping":
+                this.sendMessage(connection, {
+                    type: "pong",
+                    timestamp: Date.now(),
+                });
+                break;
 
-        if (data.type === "cancel_request") {
-            await this.handleCancelRequest(connection, data);
-            return;
+            case "cancel_request":
+                await this.handleCancelRequest(connection, data);
+                break;
         }
     }
 
