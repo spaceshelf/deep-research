@@ -4,12 +4,12 @@ import Exa, { SearchResult } from "exa-js";
 import pLimit from "p-limit";
 import { createOpenAIClient, OpenAIEnv } from "./openai";
 import {
-    ResearchNode,
-    ResearchConfig,
+    LightweightSearchResult,
     RelevanceCheckResult,
+    ResearchConfig,
+    ResearchNode,
     ResearchSummary,
     SourceInfo,
-    LightweightSearchResult,
 } from "./types";
 
 interface ResearchEnv extends OpenAIEnv {
@@ -302,14 +302,13 @@ export async function performDeepResearch(
                         );
                         // RECURSIVE CALL: This creates the tree structure
                         // Each follow-up question becomes a complete research subtree
-                        const childNode = await performDeepResearch(
+                        return await performDeepResearch(
                             followUpQuery,
                             topic,
                             env,
                             config,
                             currentDepth + 1, // Go to next depth level
                         );
-                        return childNode;
                     }),
                 );
 

@@ -131,7 +131,7 @@ Do NOT include a separate bibliography or sources section in your response - thi
 
     // Find all citation patterns [number] and validate them
     // AI might generate [15] when we only have 10 sources, so we fix these
-    const citationRegex = /\[(\d+)\]/g;
+    const citationRegex = /\[(\d+)]/g;
     const invalidCitations: number[] = [];
     const allCitations: number[] = [];
 
@@ -178,9 +178,9 @@ Do NOT include a separate bibliography or sources section in your response - thi
         .join("\n\n");
 
     // Combine everything into final report
-    // This creates the complete markdown document with header, content, sources, and methodology
+    // This creates the complete Markdown document with header, content, sources, and methodology
     // The structure ensures professional presentation and research transparency
-    const finalReport = `# Research Report: ${data.originalTopic}
+    return `# Research Report: ${data.originalTopic}
 
 *Generated on ${new Date().toLocaleDateString()}*
 
@@ -203,8 +203,6 @@ This report was generated through a ${data.researchDepth}-level deep research pr
 - Generated follow-up questions for comprehensive coverage
 
 *Report generated using AI-powered research workflow*`;
-
-    return finalReport;
 }
 
 /**

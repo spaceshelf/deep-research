@@ -30,6 +30,7 @@ interface Env {
 // Export classes for Cloudflare Workers runtime
 export { ResearcherAgent, DeepResearchWorkflow };
 
+// noinspection JSUnusedGlobalSymbols
 /**
  * Main request handler for the Cloudflare Workers application
  * Routes requests to appropriate handlers based on URL path

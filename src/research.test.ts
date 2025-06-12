@@ -151,7 +151,7 @@ describe("toLightweightResult", () => {
         const mockResult: SearchResult<any> = {
             title: 'Special Characters: "Quotes", & Symbols!',
             url: "https://example.com/special-chars",
-            text: "Content with special chars: <html>, {json}, [arrays], and unicode: 🚀💻",
+            text: "Content with special chars: <html lang='en'>, {json}, [arrays], and unicode: 🚀💻",
             score: 0.75,
             id: "test-id",
         };
@@ -160,7 +160,7 @@ describe("toLightweightResult", () => {
 
         expect(result.title).toBe('Special Characters: "Quotes", & Symbols!');
         expect(result.snippet).toBe(
-            "Content with special chars: <html>, {json}, [arrays], and unicode: 🚀💻",
+            "Content with special chars: <html lang='en'>, {json}, [arrays], and unicode: 🚀💻",
         );
     });
 });

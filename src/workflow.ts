@@ -153,14 +153,13 @@ export class DeepResearchWorkflow extends WorkflowEntrypoint<Env, Params> {
                     console.log(
                         `[STEP-3] Starting research tree ${index + 1}/${initialQueries.queries.length}: "${query}"`,
                     );
-                    const tree = await performDeepResearch(
+                    return await performDeepResearch(
                         query,
                         searchTopic,
                         this.env,
                         researchConfig,
                         0,
                     );
-                    return tree;
                 }),
             );
 
