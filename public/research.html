@@ -382,10 +382,31 @@
                 <p>Real-time research with AI agent</p>
                 <div
                     id="sessionInfo"
-                    style="font-size: 1.2rem; color: var(--text-color); margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;"
+                    style="
+                        font-size: 1.2rem;
+                        color: var(--text-color);
+                        margin-top: 1rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 1rem;
+                        flex-wrap: wrap;
+                    "
                 >
                     <span>Session: <span id="sessionId">Connecting...</span></span>
-                    <button id="shareBtn" onclick="shareSession()" class="button" style="font-size: 0.9rem; padding: 0.15rem 0.8rem; line-height: 1.2; display: inline-flex; align-items: center; justify-content: center;">
+                    <button
+                        id="shareBtn"
+                        onclick="shareSession()"
+                        class="button"
+                        style="
+                            font-size: 0.9rem;
+                            padding: 0.15rem 0.8rem;
+                            line-height: 1.2;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                        "
+                    >
                         📋 Share Session
                     </button>
                 </div>
@@ -954,20 +975,23 @@
             // Share session URL
             function shareSession() {
                 const currentUrl = new URL(window.location.href);
-                
+
                 // Ensure sessionId is in the URL
-                currentUrl.searchParams.set('sessionId', sessionId);
-                
+                currentUrl.searchParams.set("sessionId", sessionId);
+
                 const shareUrl = currentUrl.toString();
-                
+
                 // Try to use the modern Clipboard API
                 if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(shareUrl).then(() => {
-                        showShareFeedback('Session URL copied to clipboard!');
-                    }).catch(err => {
-                        console.error('Failed to copy to clipboard:', err);
-                        fallbackCopyToClipboard(shareUrl);
-                    });
+                    navigator.clipboard
+                        .writeText(shareUrl)
+                        .then(() => {
+                            showShareFeedback("Session URL copied to clipboard!");
+                        })
+                        .catch((err) => {
+                            console.error("Failed to copy to clipboard:", err);
+                            fallbackCopyToClipboard(shareUrl);
+                        });
                 } else {
                     // Fallback for older browsers or non-secure contexts
                     fallbackCopyToClipboard(shareUrl);
@@ -984,29 +1008,29 @@
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();
-                
+
                 try {
-                    document.execCommand('copy');
-                    showShareFeedback('Session URL copied to clipboard!');
+                    document.execCommand("copy");
+                    showShareFeedback("Session URL copied to clipboard!");
                 } catch (err) {
-                    console.error('Fallback copy failed:', err);
-                    showShareFeedback('Failed to copy URL. Please copy manually from address bar.');
+                    console.error("Fallback copy failed:", err);
+                    showShareFeedback("Failed to copy URL. Please copy manually from address bar.");
                 }
-                
+
                 document.body.removeChild(textArea);
             }
 
             // Show temporary feedback for share action
             function showShareFeedback(message) {
-                const shareBtn = document.getElementById('shareBtn');
+                const shareBtn = document.getElementById("shareBtn");
                 const originalText = shareBtn.textContent;
-                
-                shareBtn.textContent = '✅ Copied!';
-                shareBtn.style.backgroundColor = 'var(--success-color)';
-                
+
+                shareBtn.textContent = "✅ Copied!";
+                shareBtn.style.backgroundColor = "var(--success-color)";
+
                 setTimeout(() => {
                     shareBtn.textContent = originalText;
-                    shareBtn.style.backgroundColor = 'var(--button-bg)';
+                    shareBtn.style.backgroundColor = "var(--button-bg)";
                 }, 2000);
             }
 

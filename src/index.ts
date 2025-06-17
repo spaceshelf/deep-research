@@ -38,22 +38,26 @@ const routes = [
     {
         pattern: new URLPattern({ pathname: "/api/agent" }),
         handler: handleAgentRoute,
-        name: "agent_websocket"
+        name: "agent_websocket",
     },
     {
         pattern: new URLPattern({ pathname: "/api/research" }),
         handler: handleResearchRoute,
-        name: "research_api"
-    }
+        name: "research_api",
+    },
 ];
 
 /**
  * Handle agent-related requests (WebSocket connections)
  */
-async function handleAgentRoute(req: Request, env: Env, urlMatch: URLPatternResult): Promise<Response> {
+async function handleAgentRoute(
+    req: Request,
+    env: Env,
+    urlMatch: URLPatternResult,
+): Promise<Response> {
     try {
         const url = new URL(req.url);
-        
+
         // Extract chatId from query parameters, fallback to default
         const chatId = url.searchParams.get("chatId") || "8457stkn34765se";
 
@@ -72,84 +76,110 @@ async function handleAgentRoute(req: Request, env: Env, urlMatch: URLPatternResu
 /**
  * Handle research API requests (HTTP REST API)
  */
-async function handleResearchRoute(req: Request, env: Env, urlMatch: URLPatternResult): Promise<Response> {
+async function handleResearchRoute(
+    req: Request,
+    env: Env,
+    urlMatch: URLPatternResult,
+): Promise<Response> {
     try {
         const url = new URL(req.url);
-        
+
         // GET: Check status of existing workflow instance
         if (req.method === "GET") {
             const instanceId = url.searchParams.get("instanceId");
-            
+
             if (!instanceId) {
-                return new Response(JSON.stringify({ error: "instanceId parameter is required for GET requests" }), {
-                    status: 400,
-                    headers: { "Content-Type": "application/json" },
-                });
+                return new Response(
+                    JSON.stringify({
+                        error: "instanceId parameter is required for GET requests",
+                    }),
+                    {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                );
             }
 
             try {
                 const instance = await env.DEEP_RESEARCH_WORKFLOW.get(instanceId);
                 const status = await instance.status();
-                
+
                 return new Response(JSON.stringify({ status }), {
                     status: 200,
                     headers: { "Content-Type": "application/json" },
                 });
             } catch (error) {
-                return new Response(JSON.stringify({
-                    error: "Workflow instance not found",
-                    instanceId: instanceId
-                }), {
-                    status: 404,
-                    headers: { "Content-Type": "application/json" },
-                });
+                return new Response(
+                    JSON.stringify({
+                        error: "Workflow instance not found",
+                        instanceId: instanceId,
+                    }),
+                    {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                );
             }
         }
 
         // POST: Start new research workflow
         if (req.method === "POST") {
-            const body = await req.json() as { searchTopic?: string; researchDepth?: number | string };
+            const body = (await req.json()) as {
+                searchTopic?: string;
+                researchDepth?: number | string;
+            };
             const { searchTopic, researchDepth = 2 } = body;
-            
+
             if (!searchTopic) {
-                return new Response(JSON.stringify({ error: "searchTopic is required in request body" }), {
-                    status: 400,
-                    headers: { "Content-Type": "application/json" },
-                });
+                return new Response(
+                    JSON.stringify({ error: "searchTopic is required in request body" }),
+                    {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                );
             }
-            
-            const depth = typeof researchDepth === 'string' ? parseInt(researchDepth) : researchDepth;
-            
+
+            const depth =
+                typeof researchDepth === "string" ? parseInt(researchDepth) : researchDepth;
+
             // Create workflow instance with research parameters
             const instance = await env.DEEP_RESEARCH_WORKFLOW.create({
                 params: {
                     searchTopic,
                     researchDepth: depth,
-                    timestamp: Date.now()
-                }
+                    timestamp: Date.now(),
+                },
             });
-            
-            return new Response(JSON.stringify({
-                id: instance.id,
-                message: "Research workflow started",
-                topic: searchTopic,
-                depth: depth,
-                details: await instance.status()
-            }), {
-                status: 201, // Created
-                headers: { "Content-Type": "application/json" },
-            });
+
+            return new Response(
+                JSON.stringify({
+                    id: instance.id,
+                    message: "Research workflow started",
+                    topic: searchTopic,
+                    depth: depth,
+                    details: await instance.status(),
+                }),
+                {
+                    status: 201, // Created
+                    headers: { "Content-Type": "application/json" },
+                },
+            );
         }
-        
+
         // Method not allowed
-        return new Response(JSON.stringify({ error: "Method not allowed. Use GET to check status or POST to start research." }), {
-            status: 405,
-            headers: { 
-                "Content-Type": "application/json",
-                "Allow": "GET, POST"
+        return new Response(
+            JSON.stringify({
+                error: "Method not allowed. Use GET to check status or POST to start research.",
+            }),
+            {
+                status: 405,
+                headers: {
+                    "Content-Type": "application/json",
+                    Allow: "GET, POST",
+                },
             },
-        });
-        
+        );
     } catch (error) {
         console.error("Research API error:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -164,9 +194,9 @@ async function handleResearchRoute(req: Request, env: Env, urlMatch: URLPatternR
 /**
  * Main request handler for the Cloudflare Workers application
  * Uses URLPattern API for precise API routing.
- * 
- * Note: Static files (HTML, CSS, JS, images) are automatically served by 
- * Cloudflare Workers Assets from the ./public/ directory and don't need 
+ *
+ * Note: Static files (HTML, CSS, JS, images) are automatically served by
+ * Cloudflare Workers Assets from the ./public/ directory and don't need
  * explicit routing in the Worker code.
  */
 export default {

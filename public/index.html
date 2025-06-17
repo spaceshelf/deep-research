@@ -289,15 +289,15 @@
 
                 try {
                     // Create research instance using POST with JSON body
-                    const response = await fetch('/api/research', {
-                        method: 'POST',
+                    const response = await fetch("/api/research", {
+                        method: "POST",
                         headers: {
-                            'Content-Type': 'application/json'
+                            "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
                             searchTopic: searchTopic,
-                            researchDepth: parseInt(researchDepth)
-                        })
+                            researchDepth: parseInt(researchDepth),
+                        }),
                     });
 
                     const data = await response.json();
